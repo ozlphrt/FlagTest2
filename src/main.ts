@@ -264,10 +264,10 @@ function ensureLevelBadge() {
 	lb = document.createElement('div');
 	lb.id = 'level-badge';
 	Object.assign(lb.style, {
-		position: 'fixed', left: 'calc(50% + 140px)', top: '25px', padding: '10px 18px',
+		position: 'fixed', right: '20px', top: '20px', padding: '12px 24px',
 		background: 'rgba(0,0,0,0.4)', color: '#e6edf3', borderRadius: '22px',
 		backdropFilter: 'blur(15px)', border: '1px solid rgba(255,255,255,0.1)',
-		boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'left',
+		boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'right',
 		lineHeight: '1.2', zIndex: '2000'
 	});
 	document.body.appendChild(lb);
@@ -881,9 +881,12 @@ let gameActive = false;
 let blitzMode = false;
 const timerDiv = document.createElement('div');
 Object.assign(timerDiv.style, {
-	position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-	color: 'white', fontSize: '80px', fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif', fontWeight: '900',
-	textShadow: '0 4px 8px rgba(0,0,0,0.8)', pointerEvents: 'none', zIndex: '1000'
+	position: 'fixed', top: '20px', left: '20px',
+	color: 'white', fontSize: '48px', fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif', fontWeight: '900',
+	textShadow: '0 4px 8px rgba(0,0,0,0.6)', pointerEvents: 'none', zIndex: '1000',
+	background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(15px)', padding: '6px 20px', borderRadius: '22px',
+	border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+	display: 'flex', alignItems: 'center', height: '54px', boxSizing: 'border-box'
 });
 timerDiv.innerText = '00:00';
 document.body.appendChild(timerDiv);
@@ -1196,14 +1199,25 @@ function createSettingsUI() {
 
 	const createHintBtn = (label: string, cost: number, color: string, onClick: () => void) => {
 		const b = document.createElement('button');
-		b.innerHTML = `<span>${label}</span> <span style="background:${color}; color:white; padding:1px 5px; border-radius:10px; font-size:9px; margin-left:4px; font-weight:bold">${cost}s</span>`;
+		b.innerHTML = `<span style="font-weight:700">${label}</span> <span style="background:${color}; color:white; padding:1px 6px; border-radius:10px; font-size:10px; margin-left:6px; font-weight:900; box-shadow: 0 2px 4px rgba(0,0,0,0.3)">${cost}s</span>`;
 		Object.assign(b.style, {
-			background: 'transparent', border: 'none', color: '#eee', cursor: 'pointer',
-			fontSize: '12px', padding: '6px 10px', borderRadius: '18px', transition: 'all 0.2s',
-			display: 'flex', alignItems: 'center', fontWeight: '500'
+			background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+			color: '#fff', cursor: 'pointer',
+			fontSize: '13px', padding: '6px 14px', borderRadius: '18px', transition: 'all 0.2s',
+			display: 'flex', alignItems: 'center', fontWeight: '600',
+			boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+			margin: '0 2px'
 		});
-		b.onmouseenter = () => { b.style.background = 'rgba(255,255,255,0.1)'; b.style.color = 'white'; };
-		b.onmouseleave = () => { b.style.background = 'transparent'; b.style.color = '#eee'; };
+		b.onmouseenter = () => {
+			b.style.background = 'rgba(255,255,255,0.15)';
+			b.style.transform = 'translateY(-2px)';
+			b.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+		};
+		b.onmouseleave = () => {
+			b.style.background = 'rgba(255,255,255,0.05)';
+			b.style.transform = 'translateY(0)';
+			b.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+		};
 		b.onclick = () => {
 			const timeRem = blitzEndTime - Date.now();
 			if (gameActive && blitzMode && timeRem > (cost * 1000 + 1000)) {
