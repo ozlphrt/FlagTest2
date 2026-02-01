@@ -1232,13 +1232,13 @@ function createSettingsUI() {
 		hintPanel.appendChild(b);
 	};
 
-	createHintBtn('Country', HINT_COSTS.COUNTRY, '#ea580c', () => { // Orange
+	createHintBtn('Reveal Country', HINT_COSTS.COUNTRY, '#ea580c', () => { // Orange
 		revealCountryHintActive = true;
 		updateHandLabelFromCurrentHand();
 		setTimeout(() => { revealCountryHintActive = false; updateHandLabelFromCurrentHand(); }, 5000);
 	});
 
-	createHintBtn('Continent', HINT_COSTS.CONTINENT, '#2563eb', () => { // Blue
+	createHintBtn('Reveal Continent', HINT_COSTS.CONTINENT, '#2563eb', () => { // Blue
 		locateContinentHintActive = true;
 		setTimeout(() => { locateContinentHintActive = false; }, 4000);
 	});
