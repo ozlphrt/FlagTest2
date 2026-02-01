@@ -648,7 +648,7 @@ Object.assign(versionDiv.style, {
 	color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontFamily: 'sans-serif',
 	pointerEvents: 'none', zIndex: '1000'
 });
-versionDiv.innerText = 'v1.2.3 (PWA OK)';
+versionDiv.innerText = 'v1.2.4 (AutoHide)';
 document.body.appendChild(versionDiv);
 
 function updateTimer() {
@@ -719,13 +719,22 @@ function createSettingsUI() {
 		boxShadow: '0 4px 15px rgba(0,0,0,0.3)', zIndex: '1000', color: 'white'
 	});
 
+	let hideTimer: any;
+	const resetTimer = () => {
+		clearTimeout(hideTimer);
+		hideTimer = setTimeout(() => { menu.style.display = 'none'; }, 5000);
+	};
+
 	// Toggles helper
 	const addToggle = (label: string, id: string, onChange: (checked: boolean) => void, initial = false) => {
 		const wrap = document.createElement('label');
 		Object.assign(wrap.style, { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' });
 		wrap.innerHTML = `<span>${label}</span><input type="checkbox" id="${id}" ${initial ? 'checked' : ''}>`;
 		menu.appendChild(wrap);
-		wrap.querySelector('input')!.onchange = (e) => onChange((e.target as HTMLInputElement).checked);
+		wrap.querySelector('input')!.onchange = (e) => {
+			onChange((e.target as HTMLInputElement).checked);
+			resetTimer();
+		};
 	};
 
 	addToggle('Continents', 'cont-toggle', (v) => { continentsEnabled = v; updateTrackLabels(); updateHandLabelFromCurrentHand(); }, continentsEnabled);
@@ -733,7 +742,15 @@ function createSettingsUI() {
 	addToggle('Camera Lock', 'cam-lock', (v) => { controls.enabled = !v; });
 
 	document.body.appendChild(menu);
-	btn.onclick = () => { menu.style.display = menu.style.display === 'none' ? 'flex' : 'none'; };
+	btn.onclick = () => {
+		if (menu.style.display === 'none') {
+			menu.style.display = 'flex';
+			resetTimer();
+		} else {
+			menu.style.display = 'none';
+			clearTimeout(hideTimer);
+		}
+	};
 }
 
 // -----------------------------------------------------------------------------
