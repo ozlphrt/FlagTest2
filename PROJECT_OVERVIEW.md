@@ -1,9 +1,9 @@
-# FlagTest — v1.2.2
+# FlagTest — v1.2.3
 
 ## Release Links
 - **Repository**: https://github.com/ozlphrt/FlagTest2
-- **Release**: https://github.com/ozlphrt/FlagTest2/releases/tag/v1.2.2
-- **Tree**: https://github.com/ozlphrt/FlagTest2/tree/v1.2.2
+- **Release**: https://github.com/ozlphrt/FlagTest2/releases/tag/v1.2.3
+- **Tree**: https://github.com/ozlphrt/FlagTest2/tree/v1.2.3
 - **Demo**: https://ozlphrt.github.io/FlagTest2/
 
 This project is a WebGL/Three.js prototype for a 3D Mahjong Solitaire experience with 144 tiles in a classic turtle-style stacked layout.
@@ -30,6 +30,7 @@ This project is a WebGL/Three.js prototype for a 3D Mahjong Solitaire experience
 - v1.2.0: Version bump and deployment refresh.
 - v1.2.1: Fix Service Worker caching bug for subfolders.
 - v1.2.2: Hard invalidate cache and improve SW robustness.
+- v1.2.3: Service Worker "Kill Switch" to resolve persistent 404/Black Screen.
 
 ## Task List
 - [x] Create documentation skeleton per project rules.
