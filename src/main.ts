@@ -1430,6 +1430,9 @@ function showLevelUpModal(title: string, subtitle: string, onOk: () => void) {
 }
 
 const gui = new GUI({ title: 'Debug' });
+gui.domElement.style.position = 'fixed';
+gui.domElement.style.top = '84px';
+gui.domElement.style.left = '20px';
 const debugObj = {
 	level: `Level ${currentLevelIndex + 1}`
 };
