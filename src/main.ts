@@ -44,13 +44,6 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const CURRENT_VERSION = 'v1.2.0';
-const HINT_COSTS = {
-	COUNTRY: 15,
-	CONTINENT: 20
-};
-
-let revealCountryHintActive = false;
-let locateContinentHintActive = false;
 
 function saveProgress(levelId: number) {
 	try { localStorage.setItem(STORAGE_KEY, levelId.toString()); } catch { }
@@ -264,12 +257,11 @@ function ensureLevelBadge() {
 	lb = document.createElement('div');
 	lb.id = 'level-badge';
 	Object.assign(lb.style, {
-		position: 'fixed', right: '20px', top: '20px', padding: '0 24px',
+		position: 'fixed', right: '20px', top: '20px', padding: '10px 20px',
 		background: 'rgba(0,0,0,0.4)', color: '#e6edf3', borderRadius: '22px',
 		backdropFilter: 'blur(15px)', border: '1px solid rgba(255,255,255,0.1)',
 		boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'right',
-		display: 'flex', flexDirection: 'column', justifyContent: 'center',
-		height: '64px', zIndex: '2000', boxSizing: 'border-box'
+		lineHeight: '1.2', zIndex: '2000'
 	});
 	document.body.appendChild(lb);
 	return lb;
@@ -882,13 +874,12 @@ let gameActive = false;
 let blitzMode = false;
 const timerDiv = document.createElement('div');
 Object.assign(timerDiv.style, {
-	position: 'fixed', top: '20px', left: '20px',
+	position: 'fixed', top: '20px', left: '20px', padding: '10px 20px',
 	color: 'white', fontSize: '32px', fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif', fontWeight: '900',
 	textShadow: '0 4px 8px rgba(0,0,0,0.3)', pointerEvents: 'none', zIndex: '2000',
 	background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(15px)', borderRadius: '22px',
 	border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-	display: 'flex', alignItems: 'center', justifyContent: 'center',
-	height: '64px', width: '160px', boxSizing: 'border-box'
+	textAlign: 'left', lineHeight: '1.2'
 });
 timerDiv.innerText = '00:00';
 document.body.appendChild(timerDiv);
@@ -1064,8 +1055,8 @@ function updateHandLabelFromCurrentHand() {
 	// Respect Level Mode
 	const mode = currentLevelConfig.mode;
 
-	// Visual Mode: Show NOTHING (unless debug or hint)
-	if ((mode === 'Visual' || mode === 'Shape') && !debugContinentsEnabled && !revealCountryHintActive) return;
+	// Visual Mode: Show NOTHING (unless debug)
+	if ((mode === 'Visual' || mode === 'Shape') && !debugContinentsEnabled) return;
 
 	const hand = tileRecords.find(r => r.mesh.userData.hand);
 	if (!hand) return;
@@ -1167,12 +1158,6 @@ function createSettingsUI() {
 
 	addToggle('Camera Lock', 'cam-lock', (v) => { controls.enabled = !v; });
 
-	// Hint that cheats are disabled by level rules
-	const note = document.createElement('div');
-	note.innerText = "(Hints controlled by Level)";
-	note.style.fontSize = "12px"; note.style.opacity = "0.7";
-	menu.appendChild(note);
-
 	// Version Info
 	const ver = document.createElement('div');
 	ver.innerText = typeof CURRENT_VERSION !== 'undefined' ? CURRENT_VERSION : 'v1.1.0';
@@ -1180,70 +1165,6 @@ function createSettingsUI() {
 	menu.appendChild(ver);
 
 	document.body.appendChild(menu);
-
-	// Hint Panel (Integrated into Control Bar)
-	const hintPanel = document.createElement('div');
-	hintPanel.id = 'hint-panel';
-	Object.assign(hintPanel.style, {
-		background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(15px)',
-		borderRadius: '22px', display: 'flex', alignItems: 'center', padding: '0 4px 0 12px',
-		height: '40px', gap: '4px', color: 'white',
-		border: '1px solid rgba(255,255,255,0.1)',
-		boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
-	});
-
-	const hintLabel = document.createElement('div');
-	hintLabel.innerText = "HINT";
-	hintLabel.style.fontSize = "9px"; hintLabel.style.fontWeight = "900"; hintLabel.style.opacity = "0.4";
-	hintLabel.style.letterSpacing = "1px";
-	hintLabel.style.marginRight = "4px";
-	hintPanel.appendChild(hintLabel);
-
-	const createHintBtn = (label: string, cost: number, color: string, onClick: () => void) => {
-		const b = document.createElement('button');
-		b.innerHTML = `<span style="font-weight:700">${label}</span> <span style="background:${color}; color:white; padding:1px 6px; border-radius:10px; font-size:10px; margin-left:6px; font-weight:900; box-shadow: 0 2px 4px rgba(0,0,0,0.3)">${cost}s</span>`;
-		Object.assign(b.style, {
-			background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-			color: '#fff', cursor: 'pointer',
-			fontSize: '13px', padding: '6px 14px', borderRadius: '18px', transition: 'all 0.2s',
-			display: 'flex', alignItems: 'center', fontWeight: '600',
-			boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-			margin: '0 2px'
-		});
-		b.onmouseenter = () => {
-			b.style.background = 'rgba(255,255,255,0.15)';
-			b.style.transform = 'translateY(-2px)';
-			b.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
-		};
-		b.onmouseleave = () => {
-			b.style.background = 'rgba(255,255,255,0.05)';
-			b.style.transform = 'translateY(0)';
-			b.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-		};
-		b.onclick = () => {
-			const timeRem = blitzEndTime - Date.now();
-			if (gameActive && blitzMode && timeRem > (cost * 1000 + 1000)) {
-				applyTimePenalty(cost);
-				onClick();
-			} else if (gameActive && !blitzMode) {
-				onClick();
-			}
-		};
-		hintPanel.appendChild(b);
-	};
-
-	createHintBtn('Reveal Country', HINT_COSTS.COUNTRY, '#ea580c', () => { // Orange
-		revealCountryHintActive = true;
-		updateHandLabelFromCurrentHand();
-		setTimeout(() => { revealCountryHintActive = false; updateHandLabelFromCurrentHand(); }, 5000);
-	});
-
-	createHintBtn('Reveal Continent', HINT_COSTS.CONTINENT, '#2563eb', () => { // Blue
-		locateContinentHintActive = true;
-		setTimeout(() => { locateContinentHintActive = false; }, 4000);
-	});
-
-	controlBar.appendChild(hintPanel);
 
 	btn.onclick = () => {
 		const isOpen = menu.style.opacity === '1';
@@ -1541,23 +1462,5 @@ function animateLoop() {
 	});
 
 	renderer.render(scene, camera);
-
-	// Continent Hint Logic (Shimmer/Pulse selectable matching tiles)
-	if (locateContinentHintActive) {
-		const hand = tileRecords.find(r => r.mesh.userData.hand);
-		if (hand) {
-			const targetCont = continentOf(hand.iso);
-			const shimmer = (Math.sin(now * 0.01) * 0.5 + 0.5) * 0.4;
-			tileRecords.forEach(r => {
-				if (r.mesh.userData.hand) return;
-				if (continentOf(r.iso) === targetCont && isTileFree(r.mesh)) {
-					r.topMat.emissive.setRGB(shimmer, shimmer, shimmer);
-				} else {
-					// Don't clear emissive here to avoid conflict with hover, 
-					// hover logic will handle it in the next frame if needed.
-				}
-			});
-		}
-	}
 }
 animateLoop();
