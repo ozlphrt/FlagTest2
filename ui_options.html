@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Design Options</title>
+    <!-- Importing some fonts for variety -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Inter:wght@400;600&family=Orbitron:wght@500;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: #0b0f14;
+            /* Game background color match */
+        }
+
+        /* Mock Game Background */
+        .game-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0b0f14 0%, #1a2530 100%);
+            z-index: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pillar-mock {
+            width: 100px;
+            height: 300px;
+            background: #3e603e;
+            margin: 20px;
+            position: relative;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .pillar-mock::after {
+            content: "Europe";
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Controls */
+        .theme-switcher {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 10000;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: flex;
+            gap: 10px;
+        }
+
+        .theme-btn {
+            padding: 8px 16px;
+            background: #eee;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .theme-btn:hover {
+            background: #ddd;
+        }
+
+        .theme-btn.active {
+            background: #333;
+            color: white;
+        }
+
+        /* UI Overlay Container */
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            /* Let clicks pass through generally */
+        }
+
+        .ui-element {
+            pointer-events: auto;
+        }
+
+        /* --- THEME 1: Modern Glass (Default) --- */
+        .theme-glass {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .theme-glass .timer {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 12px 32px;
+            border-radius: 50px;
+            font-size: 28px;
+            font-weight: 600;
+            color: white;
+            letter-spacing: 1px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .theme-glass .settings-btn {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .theme-glass .settings-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .theme-glass .level-badge {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .theme-glass .progress-pill {
+            position: absolute;
+            top: 50%;
+            right: 30px;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .theme-glass .stat-item {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 10px 15px;
+            border-radius: 12px;
+            color: white;
+            font-size: 12px;
+            text-align: right;
+            border-left: 3px solid #5ce1e6;
+        }
+
+        /* --- THEME 2: Playful / Cartoon --- */
+        .theme-playful {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        .theme-playful .timer {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ffde59;
+            color: #333;
+            padding: 10px 40px;
+            border-radius: 20px;
+            font-size: 32px;
+            font-weight: 700;
+            border: 4px solid white;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.2);
+            text-shadow: none;
+        }
+
+        .theme-playful .settings-btn {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 60px;
+            height: 60px;
+            background: #ff5757;
+            border-radius: 20px;
+            border: 4px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #c0392b;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .theme-playful .settings-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 #c0392b;
+        }
+
+        .theme-playful .level-badge {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: #5ce1e6;
+            color: #333;
+            padding: 15px 25px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 18px;
+            border: 4px solid white;
+            box-shadow: 0 6px 0 #3dbdc2;
+        }
+
+        /* --- THEME 3: Futuristic / HUD --- */
+        .theme-tech {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .theme-tech .timer {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(180deg, rgba(16, 30, 40, 0.9), rgba(16, 30, 40, 0));
+            padding: 20px 60px 40px;
+            clip-path: polygon(0 0, 100% 0, 85% 100%, 15% 100%);
+            font-size: 32px;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            letter-spacing: 2px;
+        }
+
+        .theme-tech .settings-btn {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 50px;
+            height: 50px;
+            background: transparent;
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            transition: all 0.3s;
+        }
+
+        .theme-tech .settings-btn:hover {
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+        }
+
+        .theme-tech .level-badge {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            color: #00ffff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 16px;
+            border-right: 4px solid #00ffff;
+            padding-right: 15px;
+            text-align: right;
+        }
+
+        .theme-tech .level-badge span {
+            display: block;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="theme-switcher">
+        <button class="theme-btn active" onclick="setTheme('glass')">Modern Glass</button>
+        <button class="theme-btn" onclick="setTheme('playful')">Playful</button>
+        <button class="theme-btn" onclick="setTheme('tech')">Sci-Fi HUD</button>
+    </div>
+
+    <div class="game-bg">
+        <div class="pillar-mock" style="height: 250px;"></div>
+        <div class="pillar-mock" style="height: 350px;"></div>
+        <div class="pillar-mock" style="height: 200px;"></div>
+    </div>
+
+    <!-- UI Overlay Wrapper -->
+    <div id="ui-container" class="ui-overlay theme-glass">
+        <!-- Timer -->
+        <div class="ui-element timer">01:38</div>
+
+        <!-- Settings Button -->
+        <div class="ui-element settings-btn">⚙️</div>
+
+        <!-- Level Badge -->
+        <div class="ui-element level-badge">
+            <span style="display:none">CURRENT OBJECTIVE</span>
+            Level 1
+        </div>
+
+        <!-- Example of side stats (optional, just to show layout) -->
+        <!--
+        <div class="progress-pill">
+            <div class="ui-element stat-item">Europe: 70%</div>
+            <div class="ui-element stat-item" style="border-color: #ffde59">Africa: 40%</div>
+        </div>
+        -->
+    </div>
+
+    <script>
+        function setTheme(themeName) {
+            const container = document.getElementById('ui-container');
+            container.className = `ui-overlay theme-${themeName}`;
+
+            // Update active button state
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.innerText.toLowerCase().includes(themeName.replace('tech', 'sci').replace('glass', 'modern').replace('playful', 'playful'))) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Minor textual adjustments per theme
+            const badge = document.querySelector('.level-badge');
+            if (themeName === 'tech') {
+                badge.innerHTML = '<span>CURRENT SECTOR</span>LEVEL 01';
+            } else {
+                badge.innerHTML = 'Level 1';
+            }
+        }
+    </script>
+</body>
+
+</html>

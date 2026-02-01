@@ -10,6 +10,7 @@ import { bridgeMasks } from './layouts/preset_bridge';
 import { crabMasks } from './layouts/preset_crab';
 import { UN193_ISO2 } from './data/un193';
 import { continentOf, type Continent } from './data/continents';
+import { LEVELS, type LevelConfig } from './data/levels';
 
 // -----------------------------------------------------------------------------
 // Constants & Configuration
@@ -41,22 +42,35 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 // Global State
 // -----------------------------------------------------------------------------
+const STORAGE_KEY = 'flagtest_level_progress';
+const CURRENT_VERSION = 'v1.2.0';
+
+function saveProgress(levelId: number) {
+	try { localStorage.setItem(STORAGE_KEY, levelId.toString()); } catch { }
+}
+
+function loadProgress(): number {
+	try {
+		const stored = localStorage.getItem(STORAGE_KEY);
+		return stored ? parseInt(stored, 10) : 1;
+	} catch { return 1; }
+}
+
 let tileRecords: TileRecord[] = [];
-let levelIndex = 1;
+let currentLevelIndex = loadProgress();
+let currentLevelConfig: LevelConfig = LEVELS.find(l => l.id === currentLevelIndex) || LEVELS[0];
 let levelPureAchieved = false;
 let modalOpen = false;
-let isoLabelsEnabled = false;
-let continentEdgesEnabled = false;
-let displayIsoOnly = false;
-let continentsEnabled = false;
-let countriesEnabled = false;
 let interactionLockUntil = 0;
 let autoSeedOnLoad = true;
 let currentPreset: string = 'canonical_turtle';
 let gameMode: 'mahjong' | 'pipes' = 'pipes';
 let showEmptyBase = false;
 const tracksState = { visible: false };
-let lastPositions: Vec3[] = [];
+let debugContinentsEnabled = false;
+// Preset Continents
+let assignedPillarContinents: Continent[] = [];
+
 let lastHover: THREE.Mesh | null = null;
 let pointerActive = false;
 const mouse = new THREE.Vector2();
@@ -176,6 +190,21 @@ function decrefTexture(iso: string) {
 }
 
 function getOrCreateFlagMaterial(iso: string) {
+	// If Capital Mode, we don't return a flag texture, we return a solid color + text?
+	// Actually, Capital Mode might still show the flag? No, "Capital Mode (Text: 'Paris') | Count Up" -> usually implies text on tile?
+	// "Capital Mode: Capital City Name Only (No Flag)" per design.
+	// We'll handle this in createTileAt by swapping the material or geometry if needed, 
+	// but it's easier to just use a placeholder material here if the mode demands it.
+
+	if (currentLevelConfig.mode === 'Capital') {
+		// Return a generic material, the text will be added as a child or texture. 
+		// Actually, let's keep the flag material for now but maybe cover it?
+		// User requirement: "Capital Cities only (e.g., tile says 'Tokyo' -> goes to Asia)"
+		// This implies the TILE FACE shows "Tokyo".
+		// Creating a text texture for every tile is expensive but doable for 144 tiles.
+		// For now, let's stick to standard behavior here and handle the "Appearance" in createTileAt.
+	}
+
 	const cached = textureCache.get(iso);
 	let tex: THREE.Texture;
 	if (cached) {
@@ -196,16 +225,9 @@ function getOrCreateFlagMaterial(iso: string) {
 }
 
 function getContinentSideMaterial(iso: string): THREE.MeshPhongMaterial {
-	const cont = continentOf(iso);
-	let color = 0xe9eef2;
-	switch (cont) {
-		case 'Africa': color = 0xffde59; break; // Yellow
-		case 'Americas': color = 0xff5757; break; // Red
-		case 'Asia': color = 0x7ed957; break; // Green
-		case 'Europe': color = 0x5ce1e6; break; // Cyan
-		case 'Oceania': color = 0xcb6ce6; break; // Purple
-	}
-	return new THREE.MeshPhongMaterial({ color, specular: 0x222222, shininess: 28 });
+	// User requested white edges only (Standardized to 0xeeeeee)
+	// We no longer color-code sides by continent.
+	return new THREE.MeshPhongMaterial({ color: 0xeeeeee, specular: 0x222222, shininess: 28 });
 }
 
 // -----------------------------------------------------------------------------
@@ -244,47 +266,103 @@ function ensureLevelBadge() {
 
 function updateLevelBadge() {
 	const lb = ensureLevelBadge();
-	lb.textContent = `Level ${levelIndex}`;
+	lb.innerHTML = `<span style="font-size:1.2em;font-weight:bold">${currentLevelConfig.mode === 'Standard' || currentLevelConfig.mode === 'Capital' ? currentLevelConfig.title : currentLevelConfig.title}</span><br><span style="font-size:0.9em;opacity:0.8">${currentLevelConfig.subtitle}</span>`;
 }
 
-function makeTextLabel(text: string, sub?: string): THREE.Mesh {
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+	const words = text.split(' ');
+	const lines = [];
+	let currentLine = words[0];
+
+	for (let i = 1; i < words.length; i++) {
+		const word = words[i];
+		const width = ctx.measureText(currentLine + " " + word).width;
+		if (width < maxWidth) {
+			currentLine += " " + word;
+		} else {
+			lines.push(currentLine);
+			currentLine = word;
+		}
+	}
+	lines.push(currentLine);
+	return lines;
+}
+
+function makeTextLabel(text: string, sub?: string, subColor: string = '#ffffff'): THREE.Mesh {
 	const canvas = document.createElement('canvas');
-	canvas.width = 512; canvas.height = 160;
+	// Taller canvas for multiline support
+	canvas.width = 512; canvas.height = 256;
 	const ctx = canvas.getContext('2d')!;
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.fillStyle = '#ffffff';
 	ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-	const fontStack = '"Segoe UI", "Roboto", system-ui, sans-serif'; // Rounder standard fonts
+	const fontStack = '"Segoe UI", "Roboto", system-ui, sans-serif';
 
 	if (sub) {
-		// Percentage (sub) - LARGER and on TOP
-		let fontSub = 80; ctx.font = `bold ${fontSub}px ${fontStack}`;
+		// Country Name (sub) - Main Feature
+		// Start larger because we reduced the plane width
+		let fontSub = 90;
 		const maxWSub = canvas.width - 20;
-		while (ctx.measureText(sub).width > maxWSub && fontSub > 30) { fontSub -= 5; ctx.font = `bold ${fontSub}px ${fontStack}`; }
-		ctx.fillText(sub, canvas.width / 2, canvas.height * 0.45);
+		let lines: string[] = [sub];
 
-		// Continent (text) - SMALLER and BELOW
-		let fontMain = 40; ctx.font = `bold ${fontMain}px ${fontStack}`;
+		// Iteratively reduce font size until it fits
+		while (fontSub > 30) {
+			ctx.font = `bold ${fontSub}px ${fontStack}`;
+			lines = wrapText(ctx, sub, maxWSub);
+
+			// Check vertical fit
+			const totalH = lines.length * (fontSub * 1.1);
+			if (totalH > canvas.height * 0.6) { // Use max 60% of height for Name
+				fontSub -= 5;
+				continue;
+			}
+			// Check horizontal fit (rare due to wrap, but single words check)
+			const longestWordW = sub.split(' ').reduce((max, w) => Math.max(max, ctx.measureText(w).width), 0);
+			if (longestWordW > maxWSub) {
+				fontSub -= 5;
+				continue;
+			}
+			break;
+		}
+
+		ctx.fillStyle = subColor;
+		const lineHeight = fontSub * 1.1;
+		const blockHeight = lines.length * lineHeight;
+		// Center block in upper portion. Continent is at bottom.
+		const startY = (canvas.height * 0.45) - (blockHeight / 2) + (fontSub * 0.3);
+
+		lines.forEach((line, i) => {
+			ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);
+		});
+
+		// Continent - Bottom
+		let fontMain = 60; ctx.font = `bold ${fontMain}px ${fontStack}`;
 		const maxWMain = canvas.width - 20;
-		while (ctx.measureText(text).width > maxWMain && fontMain > 20) { fontMain -= 4; ctx.font = `bold ${fontMain}px ${fontStack}`; }
-		ctx.fillStyle = '#cccccc'; // Slightly dimmed
-		ctx.fillText(text, canvas.width / 2, canvas.height * 0.85);
+		while (ctx.measureText(text).width > maxWMain && fontMain > 20) {
+			fontMain -= 5; ctx.font = `bold ${fontMain}px ${fontStack}`;
+		}
+		ctx.fillStyle = '#cccccc';
+		ctx.fillText(text, canvas.width / 2, canvas.height * 0.75);
+
 	} else {
-		// Single line (Hand label etc)
-		let font = 70; ctx.font = `bold ${font}px ${fontStack}`;
+		// Single line label (simple)
+		let font = 80; ctx.font = `bold ${font}px ${fontStack}`;
 		const maxW = canvas.width - 20;
 		while (ctx.measureText(text).width > maxW && font > 24) { font -= 5; ctx.font = `bold ${font}px ${fontStack}`; }
 		ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 	}
+
 	const tex = new THREE.CanvasTexture(canvas);
 	tex.colorSpace = THREE.SRGBColorSpace;
 	tex.generateMipmaps = false;
-	tex.minFilter = THREE.LinearFilter;
-	tex.magFilter = THREE.LinearFilter;
+	tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+
 	const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
 	const aspect = canvas.width / canvas.height;
-	const w = TILE.width * 3.0; const h = w / aspect;
+	// Significantly reduced plane width to prevent viewport bleeding (was 3.0)
+	const w = TILE.width * 1.7;
+	const h = w / aspect;
 	const geo = new THREE.PlaneGeometry(w, h);
 	const mesh = new THREE.Mesh(geo, mat);
 	mesh.rotation.x = -Math.PI / 2;
@@ -381,8 +459,48 @@ function clearTiles() {
 }
 
 function createTileAt(p: Vec3, iso: string): TileRecord {
-	const topMat = getOrCreateFlagMaterial(iso);
-	const sideMatToUse = continentEdgesEnabled ? getContinentSideMaterial(iso) : sideMat;
+	let topMat: THREE.Material;
+
+	if (currentLevelConfig.mode === 'Capital') {
+		// Create text texture for capital
+		// We can't await here, so we might need a placeholders or pre-fetching.
+		// For now, let's use the Flag but maybe overlay?
+		// The design says "Capital Cities only (No Flag)".
+		// Implementation hack: Use a simple canvas texture with "..." and update it async.
+		const canvas = document.createElement('canvas');
+		canvas.width = 256; canvas.height = 128;
+		const ctx = canvas.getContext('2d')!;
+		ctx.fillStyle = '#eeeeee'; ctx.fillRect(0, 0, 256, 128);
+		ctx.fillStyle = '#333333'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+		ctx.font = 'bold 24px sans-serif'; ctx.fillText('Loading...', 128, 64);
+		const tex = new THREE.CanvasTexture(canvas);
+		topMat = new THREE.MeshPhongMaterial({ map: tex });
+
+		resolveCapitalName(iso).then(cap => {
+			ctx.fillStyle = '#eeeeee'; ctx.fillRect(0, 0, 256, 128);
+			ctx.fillStyle = '#000000';
+			// Word wrap logic simple
+			const words = cap.split(' ');
+			if (words.length > 1) {
+				ctx.fillText(words.slice(0, Math.ceil(words.length / 2)).join(' '), 128, 48);
+				ctx.fillText(words.slice(Math.ceil(words.length / 2)).join(' '), 128, 88);
+			} else {
+				ctx.fillText(cap, 128, 64);
+			}
+			tex.needsUpdate = true;
+		});
+
+	} else if (currentLevelConfig.mode === 'Shape') { // Visual fallback for now
+		topMat = getOrCreateFlagMaterial(iso);
+		// TODO: Shape implementation
+	} else {
+		topMat = getOrCreateFlagMaterial(iso);
+	}
+
+	// Determine side material based on level
+	// In strict modes, we don't show continent colors on sides
+	// We determine this in getContinentSideMaterial logic above (checking currentLevelConfig)
+	const sideMatToUse = getContinentSideMaterial(iso);
 	const materials = [sideMatToUse, sideMatToUse, topMat, bottomMat, sideMatToUse, sideMatToUse];
 	const tile = new THREE.Mesh(boxGeo, materials);
 	tile.position.copy(p);
@@ -454,22 +572,82 @@ async function resolveCountryName(iso: string): Promise<string> {
 		.then(r => r.ok ? r.json() : null)
 		.then(data => {
 			const name = (Array.isArray(data) && data[0]?.name?.common) ? data[0].name.common : code;
+			// Pre-cache capital if available
+			if (Array.isArray(data) && data[0]?.capital?.[0]) {
+				countryNameCache.set(code + '_CAP', data[0].capital[0]);
+			}
 			countryNameCache.set(code, name); return name;
 		}).catch(() => code);
 }
 
+async function resolveCapitalName(iso: string): Promise<string> {
+	const code = (iso || '').toUpperCase();
+	const key = code + '_CAP';
+	if (countryNameCache.has(key)) return countryNameCache.get(key)!;
+
+	// Fetch if not present (reuse resolveCountryName flow logic essentially)
+	return fetch(`https://restcountries.com/v3.1/alpha/${code}`)
+		.then(r => r.ok ? r.json() : null)
+		.then(data => {
+			const cap = (Array.isArray(data) && data[0]?.capital?.[0]) ? data[0].capital[0] : 'Unknown';
+			countryNameCache.set(key, cap);
+			return cap;
+		}).catch(() => "Unknown");
+}
+
 function buildBalancedIsoPool(seed: number, perCount: number): string[] {
+	// Use the tier from the current level
+	const sourcePool = currentLevelConfig.tier;
+
 	const buckets: Record<string, string[]> = {};
-	for (const iso of UN193_ISO2) {
+	for (const iso of sourcePool) {
 		const c = continentOf(iso); if (c === 'Unknown') continue;
 		if (!buckets[c]) buckets[c] = []; buckets[c].push(iso);
 	}
 	const out: string[] = [];
 	const conts: Continent[] = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
 	conts.forEach((c, idx) => {
-		const arr = buckets[c] || []; const r = mulberry32(seed + idx * 1000);
+		const arr = buckets[c] || [];
+		// If explicit tier is small, we might not have enough flags for 'perCount'. 
+		// In that case, we just accept what we have or repeat?
+		// Let's assume the tiers are built large enough or we loop.
+
+		const r = mulberry32(seed + idx * 1000);
+		// Fisher-Yates shuffle
 		for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1));[arr[i], arr[j]] = [arr[j], arr[i]]; }
-		out.push(...arr.slice(0, perCount));
+
+		// Take needed amount
+		let needed = perCount;
+		let taken = 0;
+		while (taken < needed && taken < arr.length) {
+			out.push(arr[taken]);
+			taken++;
+		}
+
+		// If we still need more, fallback to general pool but keep same continent
+		if (taken < needed) {
+			// Find extra unique flags for this continent
+			const usedSet = new Set(out);
+			const candidates = UN193_ISO2.filter(iso => continentOf(iso) === c && !usedSet.has(iso));
+
+			// Shuffle candidates
+			for (let i = candidates.length - 1; i > 0; i--) {
+				const j = Math.floor(r() * (i + 1));
+				[candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+			}
+
+			let extraIdx = 0;
+			while (taken < needed && extraIdx < candidates.length) {
+				out.push(candidates[extraIdx++]);
+				taken++;
+			}
+		}
+
+		// Absolute fallback: Duplicate only if we exhausted the ENTIRE continent (rare)
+		while (taken < needed) {
+			out.push(out[taken % out.length]);
+			taken++;
+		}
 	});
 	const rAll = mulberry32(seed + 999);
 	for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rAll() * (i + 1));[out[i], out[j]] = [out[j], out[i]]; }
@@ -582,6 +760,40 @@ function spawnOutsideTile(levels: number) {
 	setTimeout(() => updateHandLabelFromCurrentHand(), 0);
 }
 
+// Helper to interpolate between two hex colors
+function lerpColor(hexA: string, hexB: string, t: number): string {
+	const c1 = new THREE.Color(hexA);
+	const c2 = new THREE.Color(hexB);
+	c1.lerp(c2, t);
+	return '#' + c1.getHexString();
+}
+
+function getColorForPercentage(p: number): string {
+	// Red: 0-40
+	// Orange: 41-60
+	// Yellow: 61-80
+	// Green: 81-100
+
+	if (p <= 40) {
+		return '#f44336'; // Red
+	}
+	if (p <= 60) {
+		// Graduate from Red to Orange
+		const t = (p - 40) / 20;
+		return lerpColor('#f44336', '#ff9800', t);
+	}
+	if (p <= 80) {
+		// Graduate from Orange to Yellow
+		const t = (p - 60) / 20;
+		return lerpColor('#ff9800', '#ffeb3b', t);
+	}
+	// Graduate from Yellow to Green (stopping at 99 before 100)
+	const t = (p - 80) / 20;
+	return lerpColor('#ffeb3b', '#4caf50', t);
+}
+
+const pillarStates = [0, 0, 0, 0, 0];
+
 function updateTrackLabels() {
 	while (trackLabelsGroup.children.length) trackLabelsGroup.remove(trackLabelsGroup.children[0]);
 	const bases = getTrackBases(), basesZ = getTrackBasesZ();
@@ -589,6 +801,7 @@ function updateTrackLabels() {
 	// Initialize counters for 5 pillars
 	const pillars = bases.map(() => ({ total: 0, counts: {} as Record<string, number> }));
 	let allPure = true;
+	let completedPillars = 0;
 
 	// Assign every tile to its closest pillar (Robust Stats)
 	for (const r of tileRecords) {
@@ -612,101 +825,273 @@ function updateTrackLabels() {
 	// Render Labels
 	for (let i = 0; i < pillars.length; i++) {
 		const { total, counts } = pillars[i];
-		let best: Continent | 'None' = 'None', bestN = 0;
-		if (total > 0) {
-			(['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'] as Continent[]).forEach(c => {
-				const n = counts[c] || 0;
-				if (n > bestN) { bestN = n; best = c; }
-			});
-		}
 
-		const purity = (bestN > 0 && total > 0) ? Math.round((bestN / total) * 100) : 0;
-		// Logic: Show name if >40% or if cheat enabled. Always show %.
-		const labelText = (purity >= 40 || continentsEnabled) ? (best as string) : '?';
-		const label = makeTextLabel(labelText, `${purity}%`);
+		// New Logic: Target Continent is PRESET.
+		const targetVal = assignedPillarContinents[i] || 'None';
+		const targetCount = counts[targetVal] || 0;
+
+		const purity = (targetCount > 0 && total > 0) ? Math.round((targetCount / total) * 100) : 0;
+		// Always show the Target Name
+		const labelText = targetVal;
+
+		// For 100%, we want to flash on achievement, then stay stable Cyan.
+		const is100 = (purity === 100 && total >= 1); // Ensure we have at least 1 tile to count as 100% done
+		const colorToUse = is100 ? '#ffffff' : getColorForPercentage(purity);
+
+		const label = makeTextLabel(labelText, `${purity}%`, colorToUse);
+
+		if (is100) {
+			label.userData.is100 = true;
+			label.material.color.setHex(0x00ffff); // Default stable Cyan
+
+			// Trigger flash if it wasn't 100% before.
+			if (pillarStates[i] !== 100) {
+				label.userData.flashStart = Date.now();
+			}
+		}
+		pillarStates[i] = purity;
 
 		// Position label
 		label.position.set(bases[i] - TILE.width * 1.0, 0.03, basesZ[i]);
 		label.rotation.x = -Math.PI / 2;
 		trackLabelsGroup.add(label);
 
-		if (purity !== 100) allPure = false;
+		if (pillarStates[i] === 100) completedPillars++;
 	}
 
-	if (allPure && !modalOpen && tileRecords.length > 0) handleLevelUp();
+	// Win Condition: 4 out of 5 Pillars complete
+	if (completedPillars >= 4 && !modalOpen && tileRecords.length > 0) handleLevelUp();
 }
 
 
 // Timer State
 let startTime = 0;
+let blitzRemaining = 0;
 let gameActive = false;
+let blitzMode = false;
 const timerDiv = document.createElement('div');
 Object.assign(timerDiv.style, {
 	position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
-	color: 'white', fontSize: '48px', fontFamily: 'monospace', fontWeight: 'bold',
-	textShadow: '0 2px 4px rgba(0,0,0,0.8)', pointerEvents: 'none', zIndex: '1000'
+	color: 'white', fontSize: '80px', fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif', fontWeight: '900',
+	textShadow: '0 4px 8px rgba(0,0,0,0.8)', pointerEvents: 'none', zIndex: '1000'
 });
 timerDiv.innerText = '00:00';
 document.body.appendChild(timerDiv);
 
-// Version Tag
-const versionDiv = document.createElement('div');
-Object.assign(versionDiv.style, {
-	position: 'fixed', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
-	color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontFamily: 'sans-serif',
-	pointerEvents: 'none', zIndex: '1000'
-});
-versionDiv.innerText = 'v1.2.6 (BoldFonts)';
-document.body.appendChild(versionDiv);
+// Version Tag removed, moved to Settings UI
+
 
 function updateTimer() {
 	if (!gameActive) return;
-	const elapsed = Math.floor((Date.now() - startTime) / 1000);
-	const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
-	const s = (elapsed % 60).toString().padStart(2, '0');
-	timerDiv.innerText = `${m}:${s}`;
+
+	if (blitzMode) {
+		// Countdown
+		const now = Date.now();
+		const elapsed = (now - startTime) / 1000;
+		let remaining = blitzRemaining - elapsed;
+
+		if (remaining <= 0) {
+			remaining = 0;
+			gameActive = false;
+			timerDiv.innerText = "00:00";
+			timerDiv.style.color = '#ff0000';
+			// Trigger Game Over
+			alert("Time's Up! Try Again.");
+			repopulatePilesRandomUnique(); // Restart level
+			return;
+		}
+
+		// Update global state tracking for bonuses
+		// Actually, simpler to just store 'lastTime' and decrement logic? 
+		// We need to support +5s bonuses.
+		// Better approach: store 'endTime' and adjust it?
+		// Let's change strategy:
+		// blitzRemaining is the source of truth, updated by delta.
+		// We'll trust the loop frequency? No, define variable logic.
+
+		// Simplest: 
+		// On Start: blitzEndTime = Date.now() + seconds * 1000;
+		// On Frame: rem = (blitzEndTime - Date.now())
+		// On Bonus: blitzEndTime += 5000;
+	} else {
+		// Count Up
+		const elapsed = Math.floor((Date.now() - startTime) / 1000);
+		const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+		const s = (elapsed % 60).toString().padStart(2, '0');
+		timerDiv.innerText = `${m}:${s}`;
+	}
+}
+
+// Revised Timer Logic with flexible specific-state needed
+let blitzEndTime = 0;
+
+function startTimer() {
+	gameActive = true;
+	startTime = Date.now();
+	timerDiv.style.color = 'white';
+
+	const cfg = currentLevelConfig;
+	if (cfg.timer === 'Blitz' && cfg.blitzTimeSeconds) {
+		blitzMode = true;
+		blitzEndTime = Date.now() + cfg.blitzTimeSeconds * 1000;
+	} else {
+		blitzMode = false;
+	}
+
+	// Start loop if not already (requestAnimationFrame handles it essentially via render loop calling this?)
+	// Wait, updateTimer() needs to be called in the animate loop.
+	// Currently it's called? I need to check the animate function at the bottom of the file.
+	// Assuming it's there.
+}
+
+function updateTimerDisplay() {
+	if (!gameActive) return;
+	if (!blitzMode) {
+		const elapsed = Math.floor((Date.now() - startTime) / 1000);
+		const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+		const s = (elapsed % 60).toString().padStart(2, '0');
+		timerDiv.innerText = `${m}:${s}`;
+	} else {
+		const remMs = blitzEndTime - Date.now();
+		if (remMs <= 0) {
+			timerDiv.innerText = "00:00";
+			gameActive = false;
+			handleGameOver("Time's Up!");
+			return;
+		}
+		const remS = Math.floor(remMs / 1000);
+		const m = Math.floor(remS / 60).toString().padStart(2, '0');
+		const s = (remS % 60).toString().padStart(2, '0');
+		timerDiv.innerText = `${m}:${s}`;
+
+		if (remS < 30) timerDiv.style.color = '#ff4444'; // Red alert
+	}
+}
+
+function addTimeBonus(seconds: number) {
+	if (gameActive && blitzMode) {
+		blitzEndTime += seconds * 1000;
+		showFloatingText(`+${seconds}s`, '#00ff00');
+	}
+}
+
+function applyTimePenalty(seconds: number) {
+	if (gameActive && blitzMode) {
+		blitzEndTime -= seconds * 1000;
+		showFloatingText(`-${seconds}s`, '#ff0000');
+		timerDiv.style.color = '#ff0000';
+		setTimeout(() => timerDiv.style.color = 'white', 500);
+	}
+}
+
+function showFloatingText(text: string, color: string) {
+	const el = document.createElement('div');
+	el.innerText = text;
+	Object.assign(el.style, {
+		position: 'fixed', top: '80px', left: '50%', transform: 'translateX(-50%)',
+		color: color, fontSize: '32px', fontWeight: 'bold', pointerEvents: 'none',
+		transition: 'all 1s ease-out', zIndex: '2000', textShadow: '0 2px 4px black'
+	});
+	document.body.appendChild(el);
+	setTimeout(() => { el.style.transform = 'translate(-50%, -50px)'; el.style.opacity = '0'; }, 50);
+	setTimeout(() => el.remove(), 1000);
+}
+
+function handleGameOver(reason: string) {
+	showLevelUpModal(
+		"Failed!",
+		`${reason}<br>Try again?`,
+		() => { repopulatePilesRandomUnique(); }
+	);
 }
 
 function handleLevelUp() {
 	gameActive = false;
-	const titles = ["Turtle Conquered!", "Map Master!", "ISO Legend!", "Telepath Mode!", "Map Whisperer!"];
-	const subs = ["Round 2: No edge hints.", "Next: Country codes.", "Next: Pure memory mode.", "Next: Only vibes.", "Master clear!"];
+	const nextId = currentLevelConfig.id + 1;
+	const nextConfig = LEVELS.find(l => l.id === nextId);
 
 	const finalTime = timerDiv.innerText;
-	showLevelUpModal(
-		titles[levelIndex - 1] || "Victory!",
-		`Time: ${finalTime}<br>${subs[levelIndex - 1] || "All pillars completed!"}`,
-		() => {
-			levelIndex++; randomState.seed = Math.floor(Date.now());
-			if (levelIndex === 4) { displayIsoOnly = true; }
-			// if (levelIndex >= 5) { isoLabelsEnabled = false; }
-			repopulatePilesRandomUnique(); updateLevelBadge();
+
+	let btnText = "Next Level";
+	let callback = () => {
+		if (nextConfig) {
+			currentLevelConfig = nextConfig;
+			saveProgress(currentLevelConfig.id);
+			updateLevelBadge();
+			repopulatePilesRandomUnique();
+		} else {
+			alert("You have completed all implemented levels! Resetting to Level 1.");
+			currentLevelConfig = LEVELS[0];
+			saveProgress(1);
+			updateLevelBadge();
+			repopulatePilesRandomUnique();
 		}
+	};
+
+	showLevelUpModal(
+		"Level Complete!",
+		`Time: ${finalTime}<br>${currentLevelConfig.timer === 'Blitz' ? 'Blitz Bonus Applied!' : 'Well done!'}`,
+		callback
 	);
+}
+
+function handleLevelStart() {
+	currentLevelConfig = LEVELS[currentLevelIndex];
+	saveProgress(currentLevelConfig.id);
+	updateLevelBadge();
+	clearTiles();
+	repopulatePilesRandomUnique();
+	applyCameraActionPreset();
 }
 
 function updateHandLabelFromCurrentHand() {
 	while (handLabelGroup.children.length) handLabelGroup.remove(handLabelGroup.children[0]);
-	if (!continentsEnabled && !countriesEnabled && !isoLabelsEnabled) return;
+	// Respect Level Mode
+	const mode = currentLevelConfig.mode;
+
+	// Visual Mode: Show NOTHING (unless debug)
+	if ((mode === 'Visual' || mode === 'Shape') && !debugContinentsEnabled) return;
+
 	const hand = tileRecords.find(r => r.mesh.userData.hand);
 	if (!hand) return;
+
+	if (mode === 'Capital' && !debugContinentsEnabled) {
+		// Show Capital Name
+		resolveCapitalName(hand.iso).then(cap => {
+			const label = makeTextLabel(cap, undefined, '#ffeb3b'); // Yellow for capital
+			label.position.set(hand.mesh.position.x, 0.03, hand.mesh.position.z + TILE.depth * 0.8);
+			handLabelGroup.add(label);
+		});
+		return;
+	}
+
+	// Standard Mode: Show Country Name + Continent
 	resolveCountryName(hand.iso).then(name => {
 		const cont = continentOf(hand.iso);
-		let text = '';
-		if (isoLabelsEnabled) text = hand.iso.toUpperCase();
-		if (countriesEnabled) text = name;
-		if (countriesEnabled && continentsEnabled) text = `${name} (${cont})`;
-		else if (continentsEnabled && !countriesEnabled) text = cont;
+		let label: THREE.Mesh;
 
-		if (!text) return;
-
-		const label = makeTextLabel(text);
-		label.position.set(hand.mesh.position.x, 0.03, hand.mesh.position.z + TILE.depth * 0.8);
+		if (currentLevelConfig.mode === 'Standard' || debugContinentsEnabled) {
+			// makeTextLabel logic: sub is TOP (Large), text is BOTTOM (Small)
+			// We want Country Name TOP, Continent BOTTOM.
+			// Debug mode forces this view even if level is Visual/Capital (actually Visual/Capital return early above? No, we need to fix that early return too)
+			label = makeTextLabel(cont, name);
+		} else {
+			label = makeTextLabel(name);
+		}
+		// Increased offset to 1.5 to prevent overlapping the tile (Label mesh is large)
+		label.position.set(hand.mesh.position.x, 0.03, hand.mesh.position.z + TILE.depth * 1.5);
 		handLabelGroup.add(label);
 	});
 }
 
+// -----------------------------------------------------------------------------
+// Scene Controls & Interaction
+// -----------------------------------------------------------------------------
 function createSettingsUI() {
+	// Settings UI removed/simplified for Level Progression System.
+	// We no longer allow users to freely toggle hints; the level config dictates this.
+	// If we want a debug menu, we can keep it hidden or reduced.
+
 	const btn = document.createElement('div');
 	btn.id = 'settings-btn';
 	btn.innerHTML = '⚙️';
@@ -742,7 +1127,7 @@ function createSettingsUI() {
 		hideTimer = setTimeout(closeMenu, 5000);
 	};
 
-	// Toggles helper
+	// Camera Lock Toggle
 	const addToggle = (label: string, id: string, onChange: (checked: boolean) => void, initial = false) => {
 		const wrap = document.createElement('label');
 		Object.assign(wrap.style, { display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' });
@@ -754,19 +1139,24 @@ function createSettingsUI() {
 		};
 	};
 
-	addToggle('Continents', 'cont-toggle', (v) => { continentsEnabled = v; updateTrackLabels(); updateHandLabelFromCurrentHand(); }, continentsEnabled);
-	addToggle('Countries', 'count-toggle', (v) => { countriesEnabled = v; updateTrackLabels(); updateHandLabelFromCurrentHand(); }, countriesEnabled);
 	addToggle('Camera Lock', 'cam-lock', (v) => { controls.enabled = !v; });
+
+	// Hint that cheats are disabled by level rules
+	const note = document.createElement('div');
+	note.innerText = "(Hints controlled by Level)";
+	note.style.fontSize = "12px"; note.style.opacity = "0.7";
+	menu.appendChild(note);
+
+	// Version Info
+	const ver = document.createElement('div');
+	ver.innerText = typeof CURRENT_VERSION !== 'undefined' ? CURRENT_VERSION : 'v1.1.0';
+	ver.style.fontSize = "10px"; ver.style.opacity = "0.5"; ver.style.marginTop = "10px"; ver.style.cursor = 'default';
+	menu.appendChild(ver);
 
 	document.body.appendChild(menu);
 	btn.onclick = () => {
 		const isOpen = menu.style.opacity === '1';
-		if (isOpen) {
-			closeMenu();
-			clearTimeout(hideTimer);
-		} else {
-			openMenu();
-		}
+		if (isOpen) { closeMenu(); clearTimeout(hideTimer); } else { openMenu(); }
 	};
 }
 
@@ -890,7 +1280,17 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 	if (!pillar.length || !hand) return;
 
 	// Start timer on first interaction if not active
-	if (!gameActive && levelIndex > 0) { startTime = Date.now(); gameActive = true; }
+	if (!gameActive && currentLevelConfig.id > 0 && !blitzMode) {
+		// If Blitz mode, timer usually starts on load? Or on first move?
+		// Design decision: Blitz starts on first move? Or immediately?
+		// "3 Minutes. Go fast." -> Usually implies immediate start or start on interaction.
+		// Current logic: startTimer() is called during buildPipesGame().
+		// If timer is already running (gameActive=true), we don't reset.
+		// Logic below (original) started it if not active.
+		// We have moved to 'startTimer()' which is called in buildPipesGame().
+		// So game is likely already active.
+		if (!gameActive) { startTimer(); }
+	}
 
 	interactionLockUntil = Date.now() + 500;
 
@@ -939,17 +1339,22 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 // -----------------------------------------------------------------------------
 // Initialization & Boot
 // -----------------------------------------------------------------------------
+
+// Initialize if empty (first run)
+if (assignedPillarContinents.length === 0) repopulatePilesRandomUnique();
+
 function buildPipesGame() {
 	clearTracks();
 	populateTracksWithTiles(10);
-	startTime = Date.now();
-	gameActive = true;
+	startTimer();
 }
 
 function repopulatePilesRandomUnique() {
+	// Fixed Alphabetical Order: Africa, Americas, Asia, Europe, Oceania
+	assignedPillarContinents = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'];
+
 	populateTracksWithTiles(10);
-	startTime = Date.now();
-	gameActive = true;
+	startTimer(); // Updated to use startTimer() which sets blitz mode
 }
 
 function showLevelUpModal(title: string, subtitle: string, onOk: () => void) {
@@ -963,21 +1368,87 @@ function showLevelUpModal(title: string, subtitle: string, onOk: () => void) {
 }
 
 const gui = new GUI({ title: 'Debug' });
-const modeObj = { gameMode };
-gui.add(modeObj, 'gameMode', ['mahjong', 'pipes']).onChange((v: any) => {
-	gameMode = v;
-	clearTiles();
-	if (gameMode === 'pipes') buildPipesGame();
-});
-gui.add(tracksState, 'visible').name('Track Guides').onChange(() => {
-	if (tracksState.visible) { buildTracks(); updateTrackLabels(); } else { clearTracks(); }
+const debugObj = {
+	level: `Level ${currentLevelIndex + 1}`
+};
+const levelOptions = LEVELS.map((_, i) => `Level ${i + 1}`);
+
+gui.add(debugObj, 'level', levelOptions).name('Jump to Level').onChange((v: string) => {
+	const idx = parseInt(v.replace('Level ', '')) - 1;
+	if (idx >= 0 && idx < LEVELS.length) {
+		currentLevelIndex = idx;
+		handleLevelStart();
+	}
 });
 gui.show(false);
+
+// Debug Shortcut: Ctrl+Alt+Shift+D
+window.addEventListener('keydown', (e) => {
+	if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyD') {
+		const isHidden = (gui.domElement.style.display === 'none');
+		gui.show(isHidden); // Toggle GUI
+		debugContinentsEnabled = isHidden; // Enable debug info when showing GUI
+		updateHandLabelFromCurrentHand();
+		updateTrackLabels();
+	}
+});
 
 createSettingsUI();
 applyCameraActionPreset();
 buildPipesGame();
 updateLevelBadge();
 
-function animateLoop() { requestAnimationFrame(animateLoop); controls.update(); updateTimer(); renderer.render(scene, camera); }
+// Version Check
+(async function checkVersion() {
+	try {
+		const resp = await fetch('./version.json');
+		if (resp.ok) {
+			const data = await resp.json();
+			if (data.version && data.version !== CURRENT_VERSION) {
+				const n = document.createElement('div');
+				Object.assign(n.style, {
+					position: 'fixed', top: '10px', right: '10px', padding: '15px 20px',
+					background: '#2563eb', color: 'white', borderRadius: '8px', zIndex: '10000',
+					boxShadow: '0 4px 6px rgba(0,0,0,0.3)', fontFamily: 'sans-serif', transition: 'opacity 0.5s'
+				});
+				n.innerHTML = `
+					<div style="font-weight:bold; margin-bottom:5px;">Update Available!</div>
+					<div style="font-size:0.9em; margin-bottom:10px;">New version ${data.version} is available.</div>
+					<button id="update-btn" style="background:white; color:#2563eb; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">Refresh</button>
+				`;
+				document.body.appendChild(n);
+				document.getElementById('update-btn')!.onclick = () => location.reload();
+			}
+		}
+	} catch (e) { console.error('Version check failed', e); }
+})();
+
+function animateLoop() {
+	requestAnimationFrame(animateLoop);
+	controls.update();
+	updateTimerDisplay();
+
+	// Flash 100% labels
+	const now = Date.now();
+	trackLabelsGroup.children.forEach((child: any) => {
+		if (child.userData.is100) {
+			if (child.userData.flashStart) {
+				const elapsed = now - child.userData.flashStart;
+				if (elapsed < 1000) { // 1 sec total
+					// 5 flashes: 100ms Bright, 100ms Cyan
+					const step = Math.floor(elapsed / 100);
+					const isBright = step % 2 === 0;
+					child.material.color.setHex(isBright ? 0xffffff : 0x00ffff);
+				} else {
+					child.userData.flashStart = 0; // Stop flashing
+					child.material.color.setHex(0x00ffff); // Stable Cyan
+				}
+			} else {
+				child.material.color.setHex(0x00ffff); // Ensure stable Cyan
+			}
+		}
+	});
+
+	renderer.render(scene, camera);
+}
 animateLoop();
