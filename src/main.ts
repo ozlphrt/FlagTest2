@@ -264,11 +264,12 @@ function ensureLevelBadge() {
 	lb = document.createElement('div');
 	lb.id = 'level-badge';
 	Object.assign(lb.style, {
-		position: 'fixed', right: '20px', top: '20px', padding: '12px 24px',
+		position: 'fixed', right: '20px', top: '20px', padding: '0 24px',
 		background: 'rgba(0,0,0,0.4)', color: '#e6edf3', borderRadius: '22px',
 		backdropFilter: 'blur(15px)', border: '1px solid rgba(255,255,255,0.1)',
 		boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'right',
-		lineHeight: '1.2', zIndex: '2000'
+		display: 'flex', flexDirection: 'column', justifyContent: 'center',
+		height: '64px', zIndex: '2000', boxSizing: 'border-box'
 	});
 	document.body.appendChild(lb);
 	return lb;
@@ -884,9 +885,10 @@ Object.assign(timerDiv.style, {
 	position: 'fixed', top: '20px', left: '20px',
 	color: 'white', fontSize: '32px', fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif', fontWeight: '900',
 	textShadow: '0 4px 8px rgba(0,0,0,0.3)', pointerEvents: 'none', zIndex: '2000',
-	background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(15px)', padding: '12px 24px', borderRadius: '22px',
+	background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(15px)', borderRadius: '22px',
 	border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-	display: 'flex', alignItems: 'center', justifyContent: 'center', height: '62px', boxSizing: 'border-box'
+	display: 'flex', alignItems: 'center', justifyContent: 'center',
+	height: '64px', width: '160px', boxSizing: 'border-box'
 });
 timerDiv.innerText = '00:00';
 document.body.appendChild(timerDiv);
