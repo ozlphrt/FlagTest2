@@ -648,7 +648,7 @@ Object.assign(versionDiv.style, {
 	color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontFamily: 'sans-serif',
 	pointerEvents: 'none', zIndex: '1000'
 });
-versionDiv.innerText = 'v1.2.4 (AutoHide)';
+versionDiv.innerText = 'v1.2.5 (AnimSettings)';
 document.body.appendChild(versionDiv);
 
 function updateTimer() {
@@ -715,14 +715,23 @@ function createSettingsUI() {
 	Object.assign(menu.style, {
 		position: 'fixed', left: '20px', bottom: '74px',
 		background: 'rgba(20,24,28,0.9)', padding: '15px', borderRadius: '12px',
-		display: 'none', flexDirection: 'column', gap: '15px',
-		boxShadow: '0 4px 15px rgba(0,0,0,0.3)', zIndex: '1000', color: 'white'
+		display: 'flex', flexDirection: 'column', gap: '15px',
+		boxShadow: '0 4px 15px rgba(0,0,0,0.3)', zIndex: '1000', color: 'white',
+		opacity: '0', transform: 'translateY(10px) scale(0.95)', pointerEvents: 'none',
+		transition: 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)'
 	});
 
 	let hideTimer: any;
+	const closeMenu = () => {
+		Object.assign(menu.style, { opacity: '0', transform: 'translateY(10px) scale(0.95)', pointerEvents: 'none' });
+	};
+	const openMenu = () => {
+		Object.assign(menu.style, { opacity: '1', transform: 'translateY(0) scale(1)', pointerEvents: 'auto' });
+		resetTimer();
+	};
 	const resetTimer = () => {
 		clearTimeout(hideTimer);
-		hideTimer = setTimeout(() => { menu.style.display = 'none'; }, 5000);
+		hideTimer = setTimeout(closeMenu, 5000);
 	};
 
 	// Toggles helper
@@ -743,12 +752,12 @@ function createSettingsUI() {
 
 	document.body.appendChild(menu);
 	btn.onclick = () => {
-		if (menu.style.display === 'none') {
-			menu.style.display = 'flex';
-			resetTimer();
-		} else {
-			menu.style.display = 'none';
+		const isOpen = menu.style.opacity === '1';
+		if (isOpen) {
+			closeMenu();
 			clearTimeout(hideTimer);
+		} else {
+			openMenu();
 		}
 	};
 }
