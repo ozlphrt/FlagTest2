@@ -44,6 +44,13 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const CURRENT_VERSION = 'v1.2.0';
+const HINT_COSTS = {
+	COUNTRY: 15,
+	CONTINENT: 20
+};
+
+let revealCountryHintActive = false;
+let locateContinentHintActive = false;
 
 function saveProgress(levelId: number) {
 	try { localStorage.setItem(STORAGE_KEY, levelId.toString()); } catch { }
@@ -257,8 +264,11 @@ function ensureLevelBadge() {
 	lb = document.createElement('div');
 	lb.id = 'level-badge';
 	Object.assign(lb.style, {
-		position: 'fixed', right: '12px', bottom: '12px', padding: '6px 10px',
-		background: 'rgba(0,0,0,0.55)', color: '#e6edf3', borderRadius: '8px'
+		position: 'fixed', right: '20px', bottom: '20px', padding: '10px 18px',
+		background: 'rgba(0,0,0,0.4)', color: '#e6edf3', borderRadius: '22px',
+		backdropFilter: 'blur(15px)', border: '1px solid rgba(255,255,255,0.1)',
+		boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'right',
+		lineHeight: '1.2', zIndex: '2000'
 	});
 	document.body.appendChild(lb);
 	return lb;
@@ -1049,8 +1059,8 @@ function updateHandLabelFromCurrentHand() {
 	// Respect Level Mode
 	const mode = currentLevelConfig.mode;
 
-	// Visual Mode: Show NOTHING (unless debug)
-	if ((mode === 'Visual' || mode === 'Shape') && !debugContinentsEnabled) return;
+	// Visual Mode: Show NOTHING (unless debug or hint)
+	if ((mode === 'Visual' || mode === 'Shape') && !debugContinentsEnabled && !revealCountryHintActive) return;
 
 	const hand = tileRecords.find(r => r.mesh.userData.hand);
 	if (!hand) return;
@@ -1092,16 +1102,27 @@ function createSettingsUI() {
 	// We no longer allow users to freely toggle hints; the level config dictates this.
 	// If we want a debug menu, we can keep it hidden or reduced.
 
+	// Unified Control Bar (Bottom Left)
+	const controlBar = document.createElement('div');
+	controlBar.id = 'control-bar';
+	Object.assign(controlBar.style, {
+		position: 'fixed', left: '20px', bottom: '20px',
+		display: 'flex', alignItems: 'center', gap: '10px', zIndex: '2000'
+	});
+	document.body.appendChild(controlBar);
+
 	const btn = document.createElement('div');
 	btn.id = 'settings-btn';
 	btn.innerHTML = '⚙️';
 	Object.assign(btn.style, {
-		position: 'fixed', left: '20px', bottom: '20px',
 		width: '44px', height: '44px', background: 'rgba(0,0,0,0.5)',
 		borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-		fontSize: '24px', cursor: 'pointer', zIndex: '1000', backdropFilter: 'blur(5px)'
+		fontSize: '24px', cursor: 'pointer', backdropFilter: 'blur(10px)',
+		border: '1px solid rgba(255,255,255,0.1)', transition: 'transform 0.2s'
 	});
-	document.body.appendChild(btn);
+	btn.onmouseenter = () => { btn.style.transform = 'scale(1.1)'; btn.style.background = 'rgba(0,0,0,0.7)'; };
+	btn.onmouseleave = () => { btn.style.transform = 'scale(1)'; btn.style.background = 'rgba(0,0,0,0.5)'; };
+	controlBar.appendChild(btn);
 
 	const menu = document.createElement('div');
 	menu.id = 'settings-menu';
@@ -1154,6 +1175,60 @@ function createSettingsUI() {
 	menu.appendChild(ver);
 
 	document.body.appendChild(menu);
+
+	// Hint Panel (Integrated into Control Bar)
+	const hintPanel = document.createElement('div');
+	hintPanel.id = 'hint-panel';
+	Object.assign(hintPanel.style, {
+		background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(15px)',
+		borderRadius: '22px', display: 'flex', alignItems: 'center', padding: '0 4px 0 12px',
+		height: '40px', gap: '4px', color: 'white',
+		border: '1px solid rgba(255,255,255,0.1)',
+		boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+	});
+
+	const hintLabel = document.createElement('div');
+	hintLabel.innerText = "HINT";
+	hintLabel.style.fontSize = "9px"; hintLabel.style.fontWeight = "900"; hintLabel.style.opacity = "0.4";
+	hintLabel.style.letterSpacing = "1px";
+	hintLabel.style.marginRight = "4px";
+	hintPanel.appendChild(hintLabel);
+
+	const createHintBtn = (label: string, cost: number, color: string, onClick: () => void) => {
+		const b = document.createElement('button');
+		b.innerHTML = `<span>${label}</span> <span style="background:${color}; color:white; padding:1px 5px; border-radius:10px; font-size:9px; margin-left:4px; font-weight:bold">${cost}s</span>`;
+		Object.assign(b.style, {
+			background: 'transparent', border: 'none', color: '#eee', cursor: 'pointer',
+			fontSize: '12px', padding: '6px 10px', borderRadius: '18px', transition: 'all 0.2s',
+			display: 'flex', alignItems: 'center', fontWeight: '500'
+		});
+		b.onmouseenter = () => { b.style.background = 'rgba(255,255,255,0.1)'; b.style.color = 'white'; };
+		b.onmouseleave = () => { b.style.background = 'transparent'; b.style.color = '#eee'; };
+		b.onclick = () => {
+			const timeRem = blitzEndTime - Date.now();
+			if (gameActive && blitzMode && timeRem > (cost * 1000 + 1000)) {
+				applyTimePenalty(cost);
+				onClick();
+			} else if (gameActive && !blitzMode) {
+				onClick();
+			}
+		};
+		hintPanel.appendChild(b);
+	};
+
+	createHintBtn('Country', HINT_COSTS.COUNTRY, '#ea580c', () => { // Orange
+		revealCountryHintActive = true;
+		updateHandLabelFromCurrentHand();
+		setTimeout(() => { revealCountryHintActive = false; updateHandLabelFromCurrentHand(); }, 5000);
+	});
+
+	createHintBtn('Continent', HINT_COSTS.CONTINENT, '#2563eb', () => { // Blue
+		locateContinentHintActive = true;
+		setTimeout(() => { locateContinentHintActive = false; }, 4000);
+	});
+
+	controlBar.appendChild(hintPanel);
+
 	btn.onclick = () => {
 		const isOpen = menu.style.opacity === '1';
 		if (isOpen) { closeMenu(); clearTimeout(hideTimer); } else { openMenu(); }
@@ -1450,5 +1525,23 @@ function animateLoop() {
 	});
 
 	renderer.render(scene, camera);
+
+	// Continent Hint Logic (Shimmer/Pulse selectable matching tiles)
+	if (locateContinentHintActive) {
+		const hand = tileRecords.find(r => r.mesh.userData.hand);
+		if (hand) {
+			const targetCont = continentOf(hand.iso);
+			const shimmer = (Math.sin(now * 0.01) * 0.5 + 0.5) * 0.4;
+			tileRecords.forEach(r => {
+				if (r.mesh.userData.hand) return;
+				if (continentOf(r.iso) === targetCont && isTileFree(r.mesh)) {
+					r.topMat.emissive.setRGB(shimmer, shimmer, shimmer);
+				} else {
+					// Don't clear emissive here to avoid conflict with hover, 
+					// hover logic will handle it in the next frame if needed.
+				}
+			});
+		}
+	}
 }
 animateLoop();
