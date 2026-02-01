@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flagtest-v1.2.0';
+const CACHE_NAME = 'flagtest-v1.2.2';
 const ASSETS = [
   './',
   './index.html',
@@ -28,7 +28,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  if (url.pathname.endsWith('index.html') || url.pathname === '/' || url.pathname.endsWith('version.json')) {
+  const isIndex = url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('version.json');
+
+  if (isIndex) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
