@@ -1,7 +1,7 @@
 # FlagTest — v1.2.0
 
 ## Release Links
-- **Repository**: https://github.com/ozlphrt/FlagTest
+- **Repository**: https://github.com/ozlphrt/FlagTest2
 - **Release**: https://github.com/ozlphrt/FlagTest2/releases/tag/v1.2.0
 - **Tree**: https://github.com/ozlphrt/FlagTest2/tree/v1.2.0
 - **Demo**: https://ozlphrt.github.io/FlagTest2/
