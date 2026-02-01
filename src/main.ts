@@ -1192,7 +1192,7 @@ function createSettingsUI() {
 
 	// Version Info
 	const ver = document.createElement('div');
-	ver.innerText = typeof CURRENT_VERSION !== 'undefined' ? CURRENT_VERSION : 'v1.1.0';
+	ver.innerText = typeof CURRENT_VERSION !== 'undefined' ? CURRENT_VERSION : 'v1.2.0';
 	ver.style.fontSize = "10px"; ver.style.opacity = "0.5"; ver.style.marginTop = "10px"; ver.style.cursor = 'default';
 	menu.appendChild(ver);
 
