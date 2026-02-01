@@ -7,8 +7,8 @@
 		content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 	<meta name="theme-color" content="#0b0f14" />
 	<meta name="mobile-web-app-capable" content="yes" />
-	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-	<link rel="manifest" href="/FlagTest2/manifest.json" />
+	<link rel="apple-touch-icon" href="icons/192.png">
+	<link rel="manifest" href="manifest.json" />
 	<title>FlagTest — Sorting Game</title>
 	<style>
 		html,
@@ -27,14 +27,14 @@
 			display: block;
 		}
 	</style>
-  <script type="module" crossorigin src="/FlagTest2/assets/index-H69APONW.js"></script>
+  <script type="module" crossorigin src="/FlagTest2/assets/index--EOL0-XU.js"></script>
 </head>
 
 <body>
 	<script>
 		if ('serviceWorker' in navigator) {
 			window.addEventListener('load', () => {
-				navigator.serviceWorker.register('/FlagTest2/sw.js').catch(console.error);
+				navigator.serviceWorker.register('sw.js').catch(console.error);
 			});
 		}
 	</script>
