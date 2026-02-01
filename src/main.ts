@@ -50,7 +50,7 @@ const HINT_COSTS = {
 };
 
 let revealCountryHintActive = false;
-let locateContinentHintActive = false;
+let continentHintLabel: THREE.Mesh | null = null;
 
 function saveProgress(levelId: number) {
 	try { localStorage.setItem(STORAGE_KEY, levelId.toString()); } catch { }
@@ -1237,8 +1237,28 @@ function createSettingsUI() {
 	});
 
 	createHintBtn('Continent', HINT_COSTS.CONTINENT, '#2563eb', () => { // Blue
-		locateContinentHintActive = true;
-		setTimeout(() => { locateContinentHintActive = false; }, 4000);
+		// Clear any existing continent hint label
+		if (continentHintLabel) {
+			handLabelGroup.remove(continentHintLabel);
+			continentHintLabel = null;
+		}
+
+		// Find the hand tile and display its continent
+		const hand = tileRecords.find(r => r.mesh.userData.hand);
+		if (hand) {
+			const cont = continentOf(hand.iso);
+			continentHintLabel = makeTextLabel(cont, undefined, '#2563eb'); // Blue color
+			continentHintLabel.position.set(hand.mesh.position.x, 0.03, hand.mesh.position.z + TILE.depth * 0.8);
+			handLabelGroup.add(continentHintLabel);
+
+			// Auto-remove after 5 seconds
+			setTimeout(() => {
+				if (continentHintLabel) {
+					handLabelGroup.remove(continentHintLabel);
+					continentHintLabel = null;
+				}
+			}, 5000);
+		}
 	});
 
 	btn.onclick = () => {
@@ -1554,19 +1574,6 @@ function animateLoop() {
 
 	renderer.render(scene, camera);
 
-	// Continent Hint Logic (Shimmer/Pulse selectable matching tiles)
-	if (typeof locateContinentHintActive !== 'undefined' && locateContinentHintActive) {
-		const hand = tileRecords.find(r => r.mesh.userData.hand);
-		if (hand) {
-			const targetCont = continentOf(hand.iso);
-			const shimmer = (Math.sin(now * 0.01) * 0.5 + 0.5) * 0.4;
-			tileRecords.forEach(r => {
-				if (r.mesh.userData.hand) return;
-				if (continentOf(r.iso) === targetCont && isTileFree(r.mesh)) {
-					r.topMat.emissive.setRGB(shimmer, shimmer, shimmer);
-				}
-			});
-		}
-	}
+	// Continent hint is now handled via label display (see continent hint button callback)
 }
 animateLoop();
