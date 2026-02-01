@@ -264,10 +264,10 @@ function ensureLevelBadge() {
 	lb = document.createElement('div');
 	lb.id = 'level-badge';
 	Object.assign(lb.style, {
-		position: 'fixed', right: '20px', bottom: '20px', padding: '10px 18px',
+		position: 'fixed', left: 'calc(50% + 140px)', top: '25px', padding: '10px 18px',
 		background: 'rgba(0,0,0,0.4)', color: '#e6edf3', borderRadius: '22px',
 		backdropFilter: 'blur(15px)', border: '1px solid rgba(255,255,255,0.1)',
-		boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'right',
+		boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'left',
 		lineHeight: '1.2', zIndex: '2000'
 	});
 	document.body.appendChild(lb);
