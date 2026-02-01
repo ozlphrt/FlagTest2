@@ -2,9 +2,9 @@
 
 ## Release Links
 - **Repository**: https://github.com/ozlphrt/FlagTest
-- **Release**: https://github.com/ozlphrt/FlagTest/releases/tag/v1.2.0
-- **Tree**: https://github.com/ozlphrt/FlagTest/tree/v1.2.0
-- **Demo**: https://ozlphrt.github.io/FlagTest/
+- **Release**: https://github.com/ozlphrt/FlagTest2/releases/tag/v1.2.0
+- **Tree**: https://github.com/ozlphrt/FlagTest2/tree/v1.2.0
+- **Demo**: https://ozlphrt.github.io/FlagTest2/
 
 This project is a WebGL/Three.js prototype for a 3D Mahjong Solitaire experience with 144 tiles in a classic turtle-style stacked layout.
 
