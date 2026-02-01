@@ -982,19 +982,27 @@ function updateTimerDisplay() {
 }
 
 function addTimeBonus(seconds: number) {
-	if (gameActive && blitzMode) {
+	if (!gameActive) return;
+	if (blitzMode) {
 		blitzEndTime += seconds * 1000;
-		showFloatingText(`+${seconds}s`, '#00ff00');
+	} else if (currentLevelConfig.timer === 'CountUp') {
+		// Reduce elapsed time by shifting startTime forward
+		startTime += seconds * 1000;
 	}
+	showFloatingText(`+${seconds}s`, '#00ff00');
 }
 
 function applyTimePenalty(seconds: number) {
-	if (gameActive && blitzMode) {
+	if (!gameActive) return;
+	if (blitzMode) {
 		blitzEndTime -= seconds * 1000;
-		showFloatingText(`-${seconds}s`, '#ff0000');
-		timerDiv.style.color = '#ff0000';
-		setTimeout(() => timerDiv.style.color = 'white', 500);
+	} else if (currentLevelConfig.timer === 'CountUp') {
+		// Increase elapsed time by shifting startTime backward
+		startTime -= seconds * 1000;
 	}
+	showFloatingText(`-${seconds}s`, '#ff0000');
+	timerDiv.style.color = '#ff0000';
+	setTimeout(() => { if (gameActive) timerDiv.style.color = 'white'; }, 500);
 }
 
 function showFloatingText(text: string, color: string) {
@@ -1408,15 +1416,15 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 	// Top moves to Hand position
 	animateMove(top.mesh, handPos);
 
-	// Time Feedback (Blitz Mode only)
-	if (gameActive && blitzMode) {
+	// Time Feedback (Any Level with Timer)
+	if (gameActive && currentLevelConfig.timer !== 'None') {
 		const handCont = continentOf(hand.iso);
 		const targetCont = assignedPillarContinents[bIdx];
 		if (handCont === targetCont) {
-			const bonus = currentLevelConfig.correctBonusSeconds || 0;
+			const bonus = currentLevelConfig.correctBonusSeconds ?? 5; // Default 5s
 			if (bonus > 0) addTimeBonus(bonus);
 		} else {
-			const penalty = currentLevelConfig.wrongPenaltySeconds || 0;
+			const penalty = currentLevelConfig.wrongPenaltySeconds ?? 5; // Default 5s
 			if (penalty > 0) applyTimePenalty(penalty);
 		}
 	}
