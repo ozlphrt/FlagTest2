@@ -1196,7 +1196,7 @@ function createSettingsUI() {
 		Object.assign(b.style, {
 			background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)',
 			color: '#fff', cursor: 'pointer',
-			fontSize: '13px', padding: '10px 18px', borderRadius: '22px', transition: 'all 0.2s',
+			fontSize: '13px', padding: '10px 14px', borderRadius: '22px', transition: 'all 0.2s',
 			display: 'flex', alignItems: 'center', fontWeight: '600',
 			boxShadow: '0 4px 12px rgba(0,0,0,0.2)', backdropFilter: 'blur(15px)'
 		});
@@ -1222,13 +1222,13 @@ function createSettingsUI() {
 		controlBar.appendChild(b);
 	};
 
-	createHintBtn('Reveal Country', HINT_COSTS.COUNTRY, '#ea580c', () => { // Orange
+	createHintBtn('Country', HINT_COSTS.COUNTRY, '#ea580c', () => { // Orange
 		revealCountryHintActive = true;
 		updateHandLabelFromCurrentHand();
 		setTimeout(() => { revealCountryHintActive = false; updateHandLabelFromCurrentHand(); }, 5000);
 	});
 
-	createHintBtn('Reveal Continent', HINT_COSTS.CONTINENT, '#2563eb', () => { // Blue
+	createHintBtn('Continent', HINT_COSTS.CONTINENT, '#2563eb', () => { // Blue
 		locateContinentHintActive = true;
 		setTimeout(() => { locateContinentHintActive = false; }, 4000);
 	});
