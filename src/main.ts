@@ -45,7 +45,7 @@ let tileRecords: TileRecord[] = [];
 let levelIndex = 1;
 let levelPureAchieved = false;
 let modalOpen = false;
-let isoLabelsEnabled = true;
+let isoLabelsEnabled = false;
 let continentEdgesEnabled = false;
 let displayIsoOnly = false;
 let continentsEnabled = false;
@@ -648,7 +648,7 @@ Object.assign(versionDiv.style, {
 	color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontFamily: 'sans-serif',
 	pointerEvents: 'none', zIndex: '1000'
 });
-versionDiv.innerText = 'v1.2.1 (NoCache)';
+versionDiv.innerText = 'v1.2.2 (HiddenISO)';
 document.body.appendChild(versionDiv);
 
 function updateTimer() {
@@ -670,8 +670,8 @@ function handleLevelUp() {
 		`Time: ${finalTime}<br>${subs[levelIndex - 1] || "All pillars completed!"}`,
 		() => {
 			levelIndex++; randomState.seed = Math.floor(Date.now());
-			if (levelIndex === 4) { displayIsoOnly = true; isoLabelsEnabled = true; }
-			if (levelIndex >= 5) { isoLabelsEnabled = false; }
+			if (levelIndex === 4) { displayIsoOnly = true; }
+			// if (levelIndex >= 5) { isoLabelsEnabled = false; }
 			repopulatePilesRandomUnique(); updateLevelBadge();
 		}
 	);
