@@ -249,24 +249,32 @@ function updateLevelBadge() {
 
 function makeTextLabel(text: string, sub?: string): THREE.Mesh {
 	const canvas = document.createElement('canvas');
-	canvas.width = 512; canvas.height = 96;
+	canvas.width = 512; canvas.height = 160;
 	const ctx = canvas.getContext('2d')!;
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	ctx.fillStyle = '#e6edf3';
+	ctx.fillStyle = '#ffffff';
 	ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+	const fontStack = '"Segoe UI", "Roboto", system-ui, sans-serif'; // Rounder standard fonts
+
 	if (sub) {
-		let fontMain = 36; ctx.font = `${fontMain}px Segoe UI, Arial`;
-		const maxWMain = canvas.width - 32;
-		while (ctx.measureText(text).width > maxWMain && fontMain > 16) { fontMain -= 2; ctx.font = `${fontMain}px Segoe UI, Arial`; }
-		ctx.fillText(text, canvas.width / 2, canvas.height * 0.40);
-		let fontSub = 26; ctx.font = `${fontSub}px Segoe UI, Arial`;
-		const maxWSub = canvas.width - 32;
-		while (ctx.measureText(sub).width > maxWSub && fontSub > 14) { fontSub -= 2; ctx.font = `${fontSub}px Segoe UI, Arial`; }
-		ctx.fillText(sub, canvas.width / 2, canvas.height * 0.72);
+		// Percentage (sub) - LARGER and on TOP
+		let fontSub = 80; ctx.font = `bold ${fontSub}px ${fontStack}`;
+		const maxWSub = canvas.width - 20;
+		while (ctx.measureText(sub).width > maxWSub && fontSub > 30) { fontSub -= 5; ctx.font = `bold ${fontSub}px ${fontStack}`; }
+		ctx.fillText(sub, canvas.width / 2, canvas.height * 0.45);
+
+		// Continent (text) - SMALLER and BELOW
+		let fontMain = 40; ctx.font = `bold ${fontMain}px ${fontStack}`;
+		const maxWMain = canvas.width - 20;
+		while (ctx.measureText(text).width > maxWMain && fontMain > 20) { fontMain -= 4; ctx.font = `bold ${fontMain}px ${fontStack}`; }
+		ctx.fillStyle = '#cccccc'; // Slightly dimmed
+		ctx.fillText(text, canvas.width / 2, canvas.height * 0.85);
 	} else {
-		let font = 36; ctx.font = `${font}px Segoe UI, Arial`;
-		const maxW = canvas.width - 32;
-		while (ctx.measureText(text).width > maxW && font > 14) { font -= 2; ctx.font = `${font}px Segoe UI, Arial`; }
+		// Single line (Hand label etc)
+		let font = 70; ctx.font = `bold ${font}px ${fontStack}`;
+		const maxW = canvas.width - 20;
+		while (ctx.measureText(text).width > maxW && font > 24) { font -= 5; ctx.font = `bold ${font}px ${fontStack}`; }
 		ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 	}
 	const tex = new THREE.CanvasTexture(canvas);
@@ -648,7 +656,7 @@ Object.assign(versionDiv.style, {
 	color: 'rgba(255,255,255,0.5)', fontSize: '12px', fontFamily: 'sans-serif',
 	pointerEvents: 'none', zIndex: '1000'
 });
-versionDiv.innerText = 'v1.2.5 (AnimSettings)';
+versionDiv.innerText = 'v1.2.6 (BoldFonts)';
 document.body.appendChild(versionDiv);
 
 function updateTimer() {
