@@ -51,6 +51,8 @@ export interface LevelConfig {
     mode: GameMode;
     timer: TimerMode;
     blitzTimeSeconds?: number;
+    correctBonusSeconds?: number;
+    wrongPenaltySeconds?: number;
     visualHint?: string; // Description for the modal
 }
 
@@ -102,7 +104,9 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Standard',
         timer: 'Blitz',
         blitzTimeSeconds: 180, // 3:00
-        visualHint: "3 Minutes. +5s for correct, -10s for wrong."
+        correctBonusSeconds: 5,
+        wrongPenaltySeconds: 5,
+        visualHint: "3 Minutes. +5s for correct, -5s for wrong."
     },
     {
         id: 6,
@@ -112,6 +116,8 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Standard',
         timer: 'Blitz',
         blitzTimeSeconds: 210, // 3:30
+        correctBonusSeconds: 4,
+        wrongPenaltySeconds: 8,
         visualHint: "Warning: Similar flags ahead!"
     },
     {
@@ -122,6 +128,8 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Visual',
         timer: 'Blitz',
         blitzTimeSeconds: 180, // 3:00
+        correctBonusSeconds: 4,
+        wrongPenaltySeconds: 10,
         visualHint: "Hard flags. No text. Good luck."
     },
     {
@@ -132,6 +140,8 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Visual',
         timer: 'Blitz',
         blitzTimeSeconds: 150, // 2:30
+        correctBonusSeconds: 3,
+        wrongPenaltySeconds: 12,
         visualHint: "2:30 Minutes. Go fast."
     },
 
@@ -153,6 +163,8 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Capital',
         timer: 'Blitz',
         blitzTimeSeconds: 240, // 4:00
+        correctBonusSeconds: 3,
+        wrongPenaltySeconds: 15,
         visualHint: "4 Minutes. Capital Cities."
     },
     {
@@ -163,6 +175,8 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Capital',
         timer: 'Blitz',
         blitzTimeSeconds: 240,
+        correctBonusSeconds: 3,
+        wrongPenaltySeconds: 18,
         visualHint: "Match capitals of confusing flags."
     },
     {
@@ -193,6 +207,8 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Shape',
         timer: 'Blitz',
         blitzTimeSeconds: 300,
+        correctBonusSeconds: 2,
+        wrongPenaltySeconds: 20,
         visualHint: "5 Minutes. Shapes."
     },
     {
@@ -203,6 +219,8 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Visual',
         timer: 'Blitz',
         blitzTimeSeconds: 180,
+        correctBonusSeconds: 2,
+        wrongPenaltySeconds: 20,
         visualHint: "193 Countries. No Text. 3 Minutes."
     },
     {
@@ -213,6 +231,8 @@ export const LEVELS: LevelConfig[] = [
         mode: 'Capital',
         timer: 'Blitz',
         blitzTimeSeconds: 180,
+        correctBonusSeconds: 2,
+        wrongPenaltySeconds: 20,
         visualHint: "The final test."
     }
 ];

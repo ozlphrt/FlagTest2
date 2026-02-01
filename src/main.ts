@@ -1001,13 +1001,30 @@ function showFloatingText(text: string, color: string) {
 	const el = document.createElement('div');
 	el.innerText = text;
 	Object.assign(el.style, {
-		position: 'fixed', top: '80px', left: '50%', transform: 'translateX(-50%)',
-		color: color, fontSize: '32px', fontWeight: 'bold', pointerEvents: 'none',
-		transition: 'all 1s ease-out', zIndex: '2000', textShadow: '0 2px 4px black'
+		position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%) scale(0.5)',
+		color: color, fontSize: '100px', fontWeight: '900', pointerEvents: 'none',
+		transition: 'all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)', zIndex: '9999',
+		textShadow: '0 0 20px rgba(0,0,0,0.8), 0 0 40px ' + color,
+		opacity: '0', filter: 'blur(10px)',
+		fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif'
 	});
 	document.body.appendChild(el);
-	setTimeout(() => { el.style.transform = 'translate(-50%, -50px)'; el.style.opacity = '0'; }, 50);
-	setTimeout(() => el.remove(), 1000);
+
+	// Animate in
+	setTimeout(() => {
+		el.style.opacity = '1';
+		el.style.transform = 'translate(-50%, -50%) scale(1)';
+		el.style.filter = 'blur(0px)';
+	}, 20);
+
+	// Animate out
+	setTimeout(() => {
+		el.style.opacity = '0';
+		el.style.transform = 'translate(-50%, -100%) scale(1.5)';
+		el.style.filter = 'blur(20px)';
+	}, 600);
+
+	setTimeout(() => el.remove(), 1200);
 }
 
 function handleGameOver(reason: string) {
@@ -1390,6 +1407,19 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 
 	// Top moves to Hand position
 	animateMove(top.mesh, handPos);
+
+	// Time Feedback (Blitz Mode only)
+	if (gameActive && blitzMode) {
+		const handCont = continentOf(hand.iso);
+		const targetCont = assignedPillarContinents[bIdx];
+		if (handCont === targetCont) {
+			const bonus = currentLevelConfig.correctBonusSeconds || 0;
+			if (bonus > 0) addTimeBonus(bonus);
+		} else {
+			const penalty = currentLevelConfig.wrongPenaltySeconds || 0;
+			if (penalty > 0) applyTimePenalty(penalty);
+		}
+	}
 
 	// Update State
 	hand.mesh.userData.hand = false;
