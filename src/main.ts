@@ -43,7 +43,7 @@ type PresetGenerator = () => Vec3[];
 // Global State
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
-const CURRENT_VERSION = 'v1.2.4';
+const CURRENT_VERSION = 'v1.2.5';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1652,7 +1652,7 @@ function showUpdateNotification(worker: ServiceWorker) {
 function registerServiceWorker() {
 	if ('serviceWorker' in navigator) {
 		window.addEventListener('load', () => {
-			navigator.serviceWorker.register('/sw.js').then((registration) => {
+			navigator.serviceWorker.register('./sw.js').then((registration) => {
 				// 1. Check if there's already a waiting worker (e.g. from previous load)
 				if (registration.waiting) {
 					showUpdateNotification(registration.waiting);
