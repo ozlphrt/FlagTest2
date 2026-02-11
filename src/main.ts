@@ -43,7 +43,7 @@ type PresetGenerator = () => Vec3[];
 // Global State
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
-const CURRENT_VERSION = 'v1.2.6';
+const CURRENT_VERSION = 'v1.2.7';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1653,9 +1653,31 @@ function registerServiceWorker() {
 	if ('serviceWorker' in navigator) {
 		window.addEventListener('load', () => {
 			navigator.serviceWorker.register('./sw.js').then((registration) => {
-				// 1. Check if there's already a waiting worker (e.g. from previous load)
+				// Function to check version and notify if different
+				const checkAndNotify = (worker: ServiceWorker) => {
+					const channel = new MessageChannel();
+					channel.port1.onmessage = (event) => {
+						const workerVersion = event.data; // e.g., 'flagtest-v1.2.7'
+						// Extract version string (v1.2.7) from cache name
+						if (workerVersion && workerVersion.includes('v')) {
+							const vIndex = workerVersion.indexOf('v');
+							const versionStr = workerVersion.substring(vIndex); // v1.2.7
+							if (versionStr !== CURRENT_VERSION) {
+								showUpdateNotification(worker);
+							} else {
+								console.log(`Ignoring update: version match (${versionStr})`);
+							}
+						} else {
+							// Fallback if version retrieval fails or format is wrong
+							showUpdateNotification(worker);
+						}
+					};
+					worker.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
+				};
+
+				// 1. Check if there's already a waiting worker
 				if (registration.waiting) {
-					showUpdateNotification(registration.waiting);
+					checkAndNotify(registration.waiting);
 					return;
 				}
 
@@ -1665,10 +1687,8 @@ function registerServiceWorker() {
 					if (!newWorker) return;
 
 					newWorker.onstatechange = () => {
-						// If it successfully installed and is now 'installed' (often means 'waiting')
-						// and there is already a controller (meaning this is an *update*, not first load)
 						if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-							showUpdateNotification(newWorker);
+							checkAndNotify(newWorker);
 						}
 					};
 				};
