@@ -43,7 +43,7 @@ type PresetGenerator = () => Vec3[];
 // Global State
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
-const CURRENT_VERSION = 'v1.2.5';
+const CURRENT_VERSION = 'v1.2.6';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1687,3 +1687,53 @@ function registerServiceWorker() {
 }
 
 registerServiceWorker();
+
+// -----------------------------------------------------------------------------
+// Force Update Logic
+// -----------------------------------------------------------------------------
+async function checkForForceUpdate() {
+	try {
+		const response = await fetch('./version.json?t=' + Date.now()); // Bust cache
+		if (!response.ok) return;
+		const data = await response.json();
+		const serverVersion = data.version;
+
+		if (serverVersion && serverVersion !== CURRENT_VERSION) {
+			console.log(`Version mismatch! Local: ${CURRENT_VERSION}, Server: ${serverVersion}. Forcing update...`);
+
+			// Unregister all workers
+			if ('serviceWorker' in navigator) {
+				const registrations = await navigator.serviceWorker.getRegistrations();
+				for (const registration of registrations) {
+					await registration.unregister();
+				}
+			}
+
+			// Clear caches (optional, but safer)
+			if ('caches' in window) {
+				const keys = await caches.keys();
+				for (const key of keys) {
+					await caches.delete(key);
+				}
+			}
+
+			// Force Reload
+			window.location.reload();
+		}
+	} catch (e) {
+		console.error("Failed to check for update:", e);
+	}
+}
+
+// Check on load
+checkForForceUpdate();
+
+// Check every 60 seconds
+setInterval(checkForForceUpdate, 60000);
+
+// Check when page becomes visible
+document.addEventListener('visibilitychange', () => {
+	if (document.visibilityState === 'visible') {
+		checkForForceUpdate();
+	}
+});
