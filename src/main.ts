@@ -43,7 +43,7 @@ type PresetGenerator = () => Vec3[];
 // Global State
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
-const CURRENT_VERSION = 'v1.2.3';
+const CURRENT_VERSION = 'v1.2.4';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -258,25 +258,63 @@ function updateHUD(intersect?: THREE.Intersection) {
 	}
 }
 
-function ensureLevelBadge() {
-	let lb = document.getElementById('level-badge');
-	if (lb) return lb;
-	lb = document.createElement('div');
-	lb.id = 'level-badge';
-	Object.assign(lb.style, {
-		position: 'fixed', right: '20px', top: '20px', padding: '10px 20px',
-		background: 'rgba(0,0,0,0.4)', color: '#e6edf3', borderRadius: '22px',
-		backdropFilter: 'blur(15px)', border: '1px solid rgba(255,255,255,0.1)',
-		boxShadow: '0 8px 32px rgba(0,0,0,0.3)', textAlign: 'right',
-		lineHeight: '1.2', zIndex: '2000'
+let timerDiv: HTMLElement;
+let levelInfoDiv: HTMLElement;
+
+function ensureStatusPanel() {
+	let panel = document.getElementById('status-panel');
+	if (panel) {
+		if (!timerDiv) timerDiv = document.getElementById('status-timer')!;
+		if (!levelInfoDiv) levelInfoDiv = document.getElementById('status-level')!;
+		return panel;
+	}
+
+	panel = document.createElement('div');
+	panel.id = 'status-panel';
+	Object.assign(panel.style, {
+		position: 'fixed', left: '20px', top: '20px', padding: '12px 20px',
+		background: 'rgba(0,0,0,0.6)', color: '#ffffff', borderRadius: '20px',
+		backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.15)',
+		boxShadow: '0 8px 32px rgba(0,0,0,0.4)', textAlign: 'left',
+		display: 'flex', flexDirection: 'row', gap: '16px', alignItems: 'center',
+		zIndex: '2000', minWidth: '300px'
 	});
-	document.body.appendChild(lb);
-	return lb;
+
+	// Level Info Section
+	levelInfoDiv = document.createElement('div');
+	levelInfoDiv.id = 'status-level';
+	Object.assign(levelInfoDiv.style, {
+		display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+		flex: '1'
+	});
+	panel.appendChild(levelInfoDiv);
+
+	// Divider
+	const div = document.createElement('div');
+	Object.assign(div.style, {
+		width: '1px', height: '40px', background: 'rgba(255,255,255,0.2)', margin: '0'
+	});
+	panel.appendChild(div);
+
+	// Timer Section
+	timerDiv = document.createElement('div');
+	timerDiv.id = 'status-timer';
+	Object.assign(timerDiv.style, {
+		fontSize: '32px', fontFamily: '"SF Mono", "Consolas", "Monaco", monospace',
+		fontWeight: '700', lineHeight: '1', letterSpacing: '1px',
+		textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+		minWidth: '100px', textAlign: 'center'
+	});
+	timerDiv.innerText = '00:00';
+	panel.appendChild(timerDiv);
+
+	document.body.appendChild(panel);
+	return panel;
 }
 
 function updateLevelBadge() {
-	const lb = ensureLevelBadge();
-	lb.innerHTML = `<span style="font-size:1.2em;font-weight:bold">${currentLevelConfig.mode === 'Standard' || currentLevelConfig.mode === 'Capital' ? currentLevelConfig.title : currentLevelConfig.title}</span><br><span style="font-size:0.9em;opacity:0.8">${currentLevelConfig.subtitle}</span>`;
+	ensureStatusPanel();
+	levelInfoDiv.innerHTML = `<div style="font-size:16px;font-weight:700;letter-spacing:0.3px;margin-bottom:2px">${currentLevelConfig.mode === 'Standard' || currentLevelConfig.mode === 'Capital' ? currentLevelConfig.title : currentLevelConfig.title}</div><div style="font-size:12px;opacity:0.75;font-weight:500">${currentLevelConfig.subtitle}</div>`;
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -879,17 +917,9 @@ let startTime = 0;
 let blitzRemaining = 0;
 let gameActive = false;
 let blitzMode = false;
-const timerDiv = document.createElement('div');
-Object.assign(timerDiv.style, {
-	position: 'fixed', top: '20px', left: '20px', padding: '10px 20px',
-	color: 'white', fontSize: '32px', fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif', fontWeight: '900',
-	textShadow: '0 4px 8px rgba(0,0,0,0.3)', pointerEvents: 'none', zIndex: '2000',
-	background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(15px)', borderRadius: '22px',
-	border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-	textAlign: 'left', lineHeight: '1.2'
-});
-timerDiv.innerText = '00:00';
-document.body.appendChild(timerDiv);
+
+// Initialize the panel immediately to ensure timerDiv is ready
+ensureStatusPanel();
 
 // Version Tag removed, moved to Settings UI
 
@@ -1011,19 +1041,22 @@ function showFloatingText(text: string, color: string) {
 	Object.assign(el.style, {
 		position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%) scale(0.5)',
 		color: color, fontSize: '100px', fontWeight: '900', pointerEvents: 'none',
-		transition: 'all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)', zIndex: '9999',
+		transition: 'all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)', zIndex: '2147483647',
 		textShadow: '0 0 20px rgba(0,0,0,0.8), 0 0 40px ' + color,
 		opacity: '0', filter: 'blur(10px)',
-		fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif'
+		fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif',
+		whiteSpace: 'nowrap'
 	});
 	document.body.appendChild(el);
 
-	// Animate in
-	setTimeout(() => {
-		el.style.opacity = '1';
-		el.style.transform = 'translate(-50%, -50%) scale(1)';
-		el.style.filter = 'blur(0px)';
-	}, 20);
+	// Animate in - Use double RAF to ensure browser registers initial state
+	requestAnimationFrame(() => {
+		requestAnimationFrame(() => {
+			el.style.opacity = '1';
+			el.style.transform = 'translate(-50%, -50%) scale(1)';
+			el.style.filter = 'blur(0px)';
+		});
+	});
 
 	// Animate out
 	setTimeout(() => {
@@ -1577,3 +1610,80 @@ function animateLoop() {
 	// Continent hint is now handled via label display (see continent hint button callback)
 }
 animateLoop();
+// -----------------------------------------------------------------------------
+// Service Worker & Updates
+// -----------------------------------------------------------------------------
+function showUpdateNotification(worker: ServiceWorker) {
+	const div = document.createElement('div');
+	Object.assign(div.style, {
+		position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
+		background: 'rgba(20, 24, 28, 0.95)', border: '1px solid rgba(255, 255, 255, 0.2)',
+		borderRadius: '12px', padding: '16px 24px', zIndex: '10000',
+		display: 'flex', alignItems: 'center', gap: '16px',
+		boxShadow: '0 8px 32px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
+		color: '#ffffff', fontFamily: 'system-ui, sans-serif'
+	});
+
+	const text = document.createElement('span');
+	text.innerText = 'New Update Available';
+	text.style.fontWeight = '600';
+	div.appendChild(text);
+
+	const btn = document.createElement('button');
+	btn.innerText = 'Refresh';
+	Object.assign(btn.style, {
+		background: '#3b82f6', color: 'white', border: 'none',
+		padding: '8px 16px', borderRadius: '6px', cursor: 'pointer',
+		fontWeight: 'bold', fontSize: '14px', transition: 'background 0.2s'
+	});
+	btn.onmouseenter = () => btn.style.background = '#2563eb';
+	btn.onmouseleave = () => btn.style.background = '#3b82f6';
+	btn.onclick = () => {
+		worker.postMessage({ type: 'SKIP_WAITING' });
+		div.style.opacity = '0.5';
+		btn.innerText = 'Updating...';
+		btn.disabled = true;
+	};
+	div.appendChild(btn);
+
+	document.body.appendChild(div);
+}
+
+function registerServiceWorker() {
+	if ('serviceWorker' in navigator) {
+		window.addEventListener('load', () => {
+			navigator.serviceWorker.register('/sw.js').then((registration) => {
+				// 1. Check if there's already a waiting worker (e.g. from previous load)
+				if (registration.waiting) {
+					showUpdateNotification(registration.waiting);
+					return;
+				}
+
+				// 2. Listen for new workers being installed
+				registration.onupdatefound = () => {
+					const newWorker = registration.installing;
+					if (!newWorker) return;
+
+					newWorker.onstatechange = () => {
+						// If it successfully installed and is now 'installed' (often means 'waiting')
+						// and there is already a controller (meaning this is an *update*, not first load)
+						if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+							showUpdateNotification(newWorker);
+						}
+					};
+				};
+			}).catch(console.error);
+
+			// 3. Reload when the controller changes (update activated)
+			let refreshing = false;
+			navigator.serviceWorker.addEventListener('controllerchange', () => {
+				if (!refreshing) {
+					refreshing = true;
+					window.location.reload();
+				}
+			});
+		});
+	}
+}
+
+registerServiceWorker();

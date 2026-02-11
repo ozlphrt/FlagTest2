@@ -57,108 +57,87 @@ export interface LevelConfig {
 }
 
 export const LEVELS: LevelConfig[] = [
-    // --- PHASE 1: THE ACADEMY ---
+    // --- PHASE 1: VISUAL RECOGNITION (Lvl 1-3) ---
     {
         id: 1,
         title: "The Academy",
         subtitle: "Level 1: Tourist Class",
         tier: TIER_1_TOURIST,
-        mode: 'Standard',
+        mode: 'Visual',
         timer: 'None',
-        visualHint: "Relaxed pace. recognizable flags only."
+        visualHint: "Relaxed pace. Recognizable flags only."
     },
     {
         id: 2,
-        title: "Visual Training",
-        subtitle: "Level 2: No Text Hints",
-        tier: TIER_1_TOURIST,
-        mode: 'Visual',
-        timer: 'None',
-        visualHint: "Flags only. No country names."
-    },
-    {
-        id: 3,
         title: "Expanding Horizons",
-        subtitle: "Level 3: Common Flags",
+        subtitle: "Level 2: Common Flags",
         tier: TIER_2_COMMON,
-        mode: 'Standard',
+        mode: 'Visual',
         timer: 'CountUp',
         visualHint: "More countries added. Timer starts."
     },
     {
-        id: 4,
-        title: "Silent Traveler",
-        subtitle: "Level 4: Common & Visual",
-        tier: TIER_2_COMMON,
+        id: 3,
+        title: "Tricky Pairs",
+        subtitle: "Level 3: Confusing Flags",
+        tier: TIER_3_TRICKY,
         mode: 'Visual',
         timer: 'CountUp',
-        visualHint: "Standard pool, no text hints."
+        visualHint: "Warning: Similar flags ahead!"
     },
 
-    // --- PHASE 2: THE SPEED RUN ---
+    // --- PHASE 2: SPEED RUN (Lvl 4-6) ---
     {
-        id: 5,
+        id: 4,
         title: "Blitz Beginner",
-        subtitle: "Level 5: Time Pressure",
+        subtitle: "Level 4: Time Pressure",
         tier: TIER_2_COMMON,
-        mode: 'Standard',
+        mode: 'Visual',
         timer: 'Blitz',
         blitzTimeSeconds: 180, // 3:00
         correctBonusSeconds: 5,
         wrongPenaltySeconds: 5,
-        visualHint: "3 Minutes. +5s for correct, -5s for wrong."
+        visualHint: "3 Minutes. +5s Correct / -5s Wrong."
     },
     {
-        id: 6,
+        id: 5,
         title: "Tricolor Trouble",
-        subtitle: "Level 6: Confusing Flags",
+        subtitle: "Level 5: Confusing Blitz",
         tier: TIER_3_TRICKY,
-        mode: 'Standard',
+        mode: 'Visual',
         timer: 'Blitz',
         blitzTimeSeconds: 210, // 3:30
         correctBonusSeconds: 4,
         wrongPenaltySeconds: 8,
-        visualHint: "Warning: Similar flags ahead!"
+        visualHint: "Tricky flags under pressure."
     },
     {
-        id: 7,
-        title: "Blind Blitz",
-        subtitle: "Level 7: Tricky & Visual",
-        tier: TIER_3_TRICKY,
-        mode: 'Visual',
-        timer: 'Blitz',
-        blitzTimeSeconds: 180, // 3:00
-        correctBonusSeconds: 4,
-        wrongPenaltySeconds: 10,
-        visualHint: "Hard flags. No text. Good luck."
-    },
-    {
-        id: 8,
+        id: 6,
         title: "Speed Demon",
-        subtitle: "Level 8: Fast Pace",
+        subtitle: "Level 6: Fast Pace",
         tier: TIER_2_COMMON,
         mode: 'Visual',
         timer: 'Blitz',
         blitzTimeSeconds: 150, // 2:30
         correctBonusSeconds: 3,
-        wrongPenaltySeconds: 12,
+        wrongPenaltySeconds: 10,
         visualHint: "2:30 Minutes. Go fast."
     },
 
-    // --- PHASE 3: THE GEOGRAPHER ---
+    // --- PHASE 3: CAPITAL CITIES (Lvl 7-9) ---
     {
-        id: 9,
+        id: 7,
         title: "Capital City",
-        subtitle: "Level 9: Tourist Capitals",
+        subtitle: "Level 7: Tourist Capitals",
         tier: TIER_1_TOURIST,
         mode: 'Capital',
         timer: 'CountUp',
-        visualHint: "Match the CAPITAL CITY to the continent."
+        visualHint: "Match Capital City to Continent."
     },
     {
-        id: 10,
+        id: 8,
         title: "Capital Blitz",
-        subtitle: "Level 10: Common Capitals",
+        subtitle: "Level 8: Common Capitals",
         tier: TIER_2_COMMON,
         mode: 'Capital',
         timer: 'Blitz',
@@ -168,71 +147,47 @@ export const LEVELS: LevelConfig[] = [
         visualHint: "4 Minutes. Capital Cities."
     },
     {
-        id: 11,
+        id: 9,
         title: "Hardcore Geography",
-        subtitle: "Level 11: Tricky Capitals",
+        subtitle: "Level 9: Tricky Capitals",
         tier: TIER_3_TRICKY,
         mode: 'Capital',
         timer: 'Blitz',
-        blitzTimeSeconds: 240,
+        blitzTimeSeconds: 240, // 4:00
         correctBonusSeconds: 3,
         wrongPenaltySeconds: 18,
         visualHint: "Match capitals of confusing flags."
     },
-    {
-        id: 12,
-        title: "Full Roster",
-        subtitle: "Level 12: UN 193",
-        tier: UN193_ISO2,
-        mode: 'Standard',
-        timer: 'None',
-        visualHint: "Every single country. Take your time."
-    },
 
-    // --- PHASE 4: THE GRANDMASTER ---
+    // --- PHASE 4: GRANDMASTER (Lvl 10-12) ---
     {
-        id: 13,
+        id: 10,
         title: "Shape Shifter",
-        subtitle: "Level 13: Shapes (Beta)",
+        subtitle: "Level 10: Country Shapes",
         tier: TIER_1_TOURIST,
         mode: 'Shape', // Fallback to Visual if no assets
         timer: 'CountUp',
         visualHint: "Identify countries by SHAPE."
     },
     {
-        id: 14,
-        title: "Shape Blitz",
-        subtitle: "Level 14: Shapes Fast",
-        tier: TIER_2_COMMON,
-        mode: 'Shape',
-        timer: 'Blitz',
-        blitzTimeSeconds: 300,
-        correctBonusSeconds: 2,
-        wrongPenaltySeconds: 20,
-        visualHint: "5 Minutes. Shapes."
-    },
-    {
-        id: 15,
-        title: "Master Visual",
-        subtitle: "Level 15: All Visual Blitz",
+        id: 11,
+        title: "Full Roster",
+        subtitle: "Level 11: UN 193 (Zen)",
         tier: UN193_ISO2,
         mode: 'Visual',
-        timer: 'Blitz',
-        blitzTimeSeconds: 180,
-        correctBonusSeconds: 2,
-        wrongPenaltySeconds: 20,
-        visualHint: "193 Countries. No Text. 3 Minutes."
+        timer: 'None',
+        visualHint: "Every single country. No timer pressure."
     },
     {
-        id: 16,
+        id: 12,
         title: "Ultimate Geography",
-        subtitle: "Level 16: All Capitals Blitz",
+        subtitle: "Level 12: UN 193 Blitz",
         tier: UN193_ISO2,
         mode: 'Capital',
         timer: 'Blitz',
-        blitzTimeSeconds: 180,
+        blitzTimeSeconds: 180, // 3:00
         correctBonusSeconds: 2,
         wrongPenaltySeconds: 20,
-        visualHint: "The final test."
+        visualHint: "The Final Test. All 193 Capitals."
     }
 ];
