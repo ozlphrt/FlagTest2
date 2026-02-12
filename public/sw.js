@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flagtest-v1.2.7';
+const CACHE_NAME = 'flagtest-v1.2.8';
 const ASSETS = [
   './',
   './index.html',
