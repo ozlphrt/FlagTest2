@@ -28,6 +28,35 @@
 		}
 	</style>
 </head>
+<script>
+	// V1.3.0 Inline Bootstrapper
+	(function () {
+		const CURRENT_VERSION = 'v1.3.0';
+
+		async function wipeAndReload() {
+			console.warn("VERSION MISMATCH: Wiping everything and hard reloading...");
+			if ('serviceWorker' in navigator) {
+				const regs = await navigator.serviceWorker.getRegistrations();
+				for (const r of regs) await r.unregister();
+			}
+			if ('caches' in window) {
+				const keys = await caches.keys();
+				for (const k of keys) await caches.delete(k);
+			}
+			// localStorage.clear(); // Too aggressive? Let's keep progress for now unless requested.
+			window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+		}
+
+		fetch('./version.json?t=' + Date.now())
+			.then(r => r.json())
+			.then(data => {
+				if (data.version && data.version !== CURRENT_VERSION) {
+					wipeAndReload();
+				}
+			})
+			.catch(e => console.error("Boot version check failed", e));
+	})();
+</script>
 
 <body>
 	<script type="module" src="/src/main.ts"></script>

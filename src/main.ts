@@ -44,7 +44,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.2.9';
+const CURRENT_VERSION = 'v1.3.0';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1741,7 +1741,7 @@ function showUpdateNotification(isForce = false) {
 
 	const text = document.createElement('div');
 	text.innerHTML = `<div style="font-weight:700; font-size:16px">Update Available</div>
-					 <div style="font-size:13px; opacity:0.9">Version 1.2.9 is ready</div>`;
+					 <div style="font-size:13px; opacity:0.9">Version 1.3.0 is ready</div>`;
 	div.appendChild(text);
 
 	const btn = document.createElement('button');
