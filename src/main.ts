@@ -44,7 +44,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.2.8';
+const CURRENT_VERSION = 'v1.2.9';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1700,206 +1700,118 @@ applyCameraActionPreset();
 buildPipesGame();
 updateLevelBadge();
 
-// Version Check
-(async function checkVersion() {
-	try {
-		const resp = await fetch('./version.json');
-		if (resp.ok) {
-			const data = await resp.json();
-			if (data.version && data.version !== CURRENT_VERSION) {
-				const n = document.createElement('div');
-				Object.assign(n.style, {
-					position: 'fixed', top: '10px', right: '10px', padding: '15px 20px',
-					background: '#2563eb', color: 'white', borderRadius: '8px', zIndex: '10000',
-					boxShadow: '0 4px 6px rgba(0,0,0,0.3)', fontFamily: 'sans-serif', transition: 'opacity 0.5s'
-				});
-				n.innerHTML = `
-					<div style="font-weight:bold; margin-bottom:5px;">Update Available!</div>
-					<div style="font-size:0.9em; margin-bottom:10px;">New version ${data.version} is available.</div>
-					<button id="update-btn" style="background:white; color:#2563eb; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">Refresh</button>
-				`;
-				document.body.appendChild(n);
-				document.getElementById('update-btn')!.onclick = () => location.reload();
-			}
-		}
-	} catch (e) { console.error('Version check failed', e); }
-})();
-
-function animateLoop() {
-	requestAnimationFrame(animateLoop);
-	controls.update();
-	updateTimerDisplay();
-
-	// Flash 100% labels
-	const now = Date.now();
-	trackLabelsGroup.children.forEach((child: any) => {
-		if (child.userData.is100) {
-			if (child.userData.flashStart) {
-				const elapsed = now - child.userData.flashStart;
-				if (elapsed < 1000) { // 1 sec total
-					// 5 flashes: 100ms Bright, 100ms Cyan
-					const step = Math.floor(elapsed / 100);
-					const isBright = step % 2 === 0;
-					child.material.color.setHex(isBright ? 0xffffff : 0x00ffff);
-				} else {
-					child.userData.flashStart = 0; // Stop flashing
-					child.material.color.setHex(0x00ffff); // Stable Cyan
-				}
-			} else {
-				child.material.color.setHex(0x00ffff); // Ensure stable Cyan
-			}
-		}
-	});
-
-	renderer.render(scene, camera);
-
-	// Continent hint is now handled via label display (see continent hint button callback)
+// -----------------------------------------------------------------------------
+// Update & Version Logic
+// -----------------------------------------------------------------------------
+async function forceHardReload() {
+	console.log("Attempting force hard reload...");
+	// 1. Unregister Service Workers
+	if ('serviceWorker' in navigator) {
+		try {
+			const registrations = await navigator.serviceWorker.getRegistrations();
+			for (const reg of registrations) await reg.unregister();
+		} catch (e) { console.error("SW unregister failed", e); }
+	}
+	// 2. Clear Caches
+	if ('caches' in window) {
+		try {
+			const keys = await caches.keys();
+			for (const key of keys) await caches.delete(key);
+		} catch (e) { console.error("Cache clear failed", e); }
+	}
+	// 3. Reload with cache-busting query param
+	const url = new URL(window.location.href);
+	url.searchParams.set('v', Date.now().toString());
+	window.location.href = url.toString();
 }
-animateLoop();
-// -----------------------------------------------------------------------------
-// Service Worker & Updates
-// -----------------------------------------------------------------------------
-function showUpdateNotification(worker: ServiceWorker) {
+
+function showUpdateNotification(isForce = false) {
+	if (document.getElementById('update-notification')) return;
+
 	const div = document.createElement('div');
+	div.id = 'update-notification';
 	Object.assign(div.style, {
-		position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
-		background: 'rgba(20, 24, 28, 0.95)', border: '1px solid rgba(255, 255, 255, 0.2)',
-		borderRadius: '12px', padding: '16px 24px', zIndex: '10000',
-		display: 'flex', alignItems: 'center', gap: '16px',
-		boxShadow: '0 8px 32px rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)',
-		color: '#ffffff', fontFamily: 'system-ui, sans-serif'
+		position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+		background: 'rgba(37, 99, 235, 0.95)', border: '1px solid rgba(255, 255, 255, 0.2)',
+		borderRadius: '16px', padding: '16px 24px', zIndex: '100000',
+		display: 'flex', alignItems: 'center', gap: '20px',
+		boxShadow: '0 12px 40px rgba(0,0,0,0.6)', backdropFilter: 'blur(15px)',
+		color: '#ffffff', fontFamily: 'system-ui, -apple-system, sans-serif'
 	});
 
-	const text = document.createElement('span');
-	text.innerText = 'New Update Available';
-	text.style.fontWeight = '600';
+	const text = document.createElement('div');
+	text.innerHTML = `<div style="font-weight:700; font-size:16px">Update Available</div>
+					 <div style="font-size:13px; opacity:0.9">Version 1.2.9 is ready</div>`;
 	div.appendChild(text);
 
 	const btn = document.createElement('button');
-	btn.innerText = 'Refresh';
+	btn.innerText = 'Refresh Now';
 	Object.assign(btn.style, {
-		background: '#3b82f6', color: 'white', border: 'none',
-		padding: '8px 16px', borderRadius: '6px', cursor: 'pointer',
-		fontWeight: 'bold', fontSize: '14px', transition: 'background 0.2s'
+		background: '#ffffff', color: '#2563eb', border: 'none',
+		padding: '10px 20px', borderRadius: '10px', cursor: 'pointer',
+		fontWeight: '800', fontSize: '14px', transition: 'all 0.2s',
+		boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
 	});
-	btn.onmouseenter = () => btn.style.background = '#2563eb';
-	btn.onmouseleave = () => btn.style.background = '#3b82f6';
-	btn.onclick = () => {
-		worker.postMessage({ type: 'SKIP_WAITING' });
-		div.style.opacity = '0.5';
-		btn.innerText = 'Updating...';
+	btn.onmouseenter = () => { btn.style.transform = 'scale(1.05)'; btn.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)'; };
+	btn.onmouseleave = () => { btn.style.transform = 'scale(1)'; btn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; };
+
+	btn.onclick = async () => {
 		btn.disabled = true;
+		btn.innerText = 'Updating...';
+		await forceHardReload();
 	};
 	div.appendChild(btn);
-
 	document.body.appendChild(div);
+}
+
+async function checkVersion() {
+	try {
+		const resp = await fetch('./version.json?t=' + Date.now());
+		if (resp.ok) {
+			const data = await resp.json();
+			const serverVersion = data.version?.replace('v', '') || '';
+			const localVersion = CURRENT_VERSION.replace('v', '');
+
+			if (serverVersion && serverVersion !== localVersion) {
+				console.log(`Version Mismatch: Server(${serverVersion}) vs Local(${localVersion})`);
+				showUpdateNotification();
+				return true;
+			}
+		}
+	} catch (e) { console.error('Version check failed', e); }
+	return false;
 }
 
 function registerServiceWorker() {
 	if ('serviceWorker' in navigator) {
 		window.addEventListener('load', () => {
-			navigator.serviceWorker.register('./sw.js').then((registration) => {
-				// Function to check version and notify if different
-				const checkAndNotify = (worker: ServiceWorker) => {
-					const channel = new MessageChannel();
-					channel.port1.onmessage = (event) => {
-						const workerVersion = event.data; // e.g., 'flagtest-v1.2.7'
-						// Extract version string (v1.2.7) from cache name
-						if (workerVersion && workerVersion.includes('v')) {
-							const vIndex = workerVersion.indexOf('v');
-							const versionStr = workerVersion.substring(vIndex); // v1.2.7
-							if (versionStr !== CURRENT_VERSION) {
-								showUpdateNotification(worker);
-							} else {
-								console.log(`Ignoring update: version match (${versionStr})`);
-							}
-						} else {
-							// Fallback if version retrieval fails or format is wrong
-							showUpdateNotification(worker);
-						}
-					};
-					worker.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
-				};
-
-				// 1. Check if there's already a waiting worker
-				if (registration.waiting) {
-					checkAndNotify(registration.waiting);
-					return;
-				}
-
-				// 2. Listen for new workers being installed
-				registration.onupdatefound = () => {
-					const newWorker = registration.installing;
+			navigator.serviceWorker.register('./sw.js').then((reg) => {
+				reg.onupdatefound = () => {
+					const newWorker = reg.installing;
 					if (!newWorker) return;
-
 					newWorker.onstatechange = () => {
 						if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-							checkAndNotify(newWorker);
+							checkVersion();
 						}
 					};
 				};
 			}).catch(console.error);
 
-			// 3. Reload when the controller changes (update activated)
-			let refreshing = false;
 			navigator.serviceWorker.addEventListener('controllerchange', () => {
-				if (!refreshing) {
-					refreshing = true;
-					window.location.reload();
+				// Avoid reload loop if already refreshing
+				if (!(window as any)._isRefreshing) {
+					(window as any)._isRefreshing = true;
+					forceHardReload();
 				}
 			});
 		});
 	}
 }
 
+// Initial check and start intervals
+checkVersion();
 registerServiceWorker();
-
-// -----------------------------------------------------------------------------
-// Force Update Logic
-// -----------------------------------------------------------------------------
-async function checkForForceUpdate() {
-	try {
-		const response = await fetch('./version.json?t=' + Date.now()); // Bust cache
-		if (!response.ok) return;
-		const data = await response.json();
-		const serverVersion = data.version;
-
-		if (serverVersion && serverVersion !== CURRENT_VERSION) {
-			console.log(`Version mismatch! Local: ${CURRENT_VERSION}, Server: ${serverVersion}. Forcing update...`);
-
-			// Unregister all workers
-			if ('serviceWorker' in navigator) {
-				const registrations = await navigator.serviceWorker.getRegistrations();
-				for (const registration of registrations) {
-					await registration.unregister();
-				}
-			}
-
-			// Clear caches (optional, but safer)
-			if ('caches' in window) {
-				const keys = await caches.keys();
-				for (const key of keys) {
-					await caches.delete(key);
-				}
-			}
-
-			// Force Reload
-			window.location.reload();
-		}
-	} catch (e) {
-		console.error("Failed to check for update:", e);
-	}
-}
-
-// Check on load
-checkForForceUpdate();
-
-// Check every 60 seconds
-setInterval(checkForForceUpdate, 60000);
-
-// Check when page becomes visible
+setInterval(checkVersion, 60000);
 document.addEventListener('visibilitychange', () => {
-	if (document.visibilityState === 'visible') {
-		checkForForceUpdate();
-	}
+	if (document.visibilityState === 'visible') checkVersion();
 });
