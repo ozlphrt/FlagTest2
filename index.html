@@ -29,9 +29,9 @@
 	</style>
 </head>
 <script>
-	// V1.3.1 Inline Bootstrapper (No Auto-Reload)
+	// V1.3.2 Inline Bootstrapper (Manual Only)
 	(function () {
-		const CURRENT_VERSION = '1.3.1';
+		const CURRENT_VERSION = '1.3.2';
 
 		function showUpdateNotification() {
 			if (document.getElementById('update-notification')) return;
@@ -48,6 +48,7 @@
 			document.body.appendChild(div);
 			document.getElementById('update-btn').onclick = async () => {
 				document.getElementById('update-btn').disabled = true;
+				document.getElementById('update-btn').innerText = 'Updating...';
 				if ('serviceWorker' in navigator) {
 					const regs = await navigator.serviceWorker.getRegistrations();
 					for (const r of regs) await r.unregister();
@@ -56,6 +57,8 @@
 					const keys = await caches.keys();
 					for (const k of keys) await caches.delete(k);
 				}
+				// Force clear session storage just in case
+				sessionStorage.clear();
 				window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
 			};
 		}
@@ -66,6 +69,7 @@
 				const serverV = (data.version || '').replace('v', '');
 				const localV = CURRENT_VERSION.replace('v', '');
 				if (serverV && serverV !== localV) {
+					console.log("Version check: Update needed", { serverV, localV });
 					if (document.body) showUpdateNotification();
 					else window.addEventListener('DOMContentLoaded', showUpdateNotification);
 				}
