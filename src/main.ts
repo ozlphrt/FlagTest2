@@ -43,7 +43,8 @@ type PresetGenerator = () => Vec3[];
 // Global State
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
-const CURRENT_VERSION = 'v1.2.7';
+const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
+const CURRENT_VERSION = 'v1.2.8';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -62,6 +63,19 @@ function loadProgress(): number {
 		return stored ? parseInt(stored, 10) : 1;
 	} catch { return 1; }
 }
+
+function loadHintsToggle(): boolean {
+	try {
+		const stored = localStorage.getItem(HINTS_TOGGLE_KEY);
+		return stored === 'false' ? false : true; // Default to true
+	} catch { return true; }
+}
+
+function saveHintsToggle(val: boolean) {
+	try { localStorage.setItem(HINTS_TOGGLE_KEY, val.toString()); } catch { }
+}
+
+let showMisplacedHints = loadHintsToggle();
 
 let tileRecords: TileRecord[] = [];
 let currentLevelIndex = loadProgress();
@@ -172,6 +186,24 @@ function mulberry32(seed: number) {
 	};
 }
 
+// -----------------------------------------------------------------------------
+// Easing Functions
+// -----------------------------------------------------------------------------
+const Easing = {
+	backOut: (t: number) => {
+		const s = 1.70158;
+		return (--t * t * ((s + 1) * t + s) + 1);
+	},
+	easeInOutQuad: (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+	easeOutQuad: (t: number) => t * (2 - t),
+	cubicBezier: (t: number, p1: number, p2: number, p3: number, p4: number) => {
+		const cX = 3 * p1;
+		const bX = 3 * (p2 - p1) - cX;
+		const aX = 1 - cX - bX;
+		return (aX * Math.pow(t, 3)) + (bX * Math.pow(t, 2)) + (cX * t);
+	}
+};
+
 function clamp(v: number, a: number, b: number): number { return Math.max(a, Math.min(b, v)); }
 
 function hashIso(iso: string): number {
@@ -235,6 +267,48 @@ function getContinentSideMaterial(iso: string): THREE.MeshPhongMaterial {
 	// User requested white edges only (Standardized to 0xeeeeee)
 	// We no longer color-code sides by continent.
 	return new THREE.MeshPhongMaterial({ color: 0xeeeeee, specular: 0x222222, shininess: 28 });
+}
+
+function getPillarIndexAt(x: number, z: number): number {
+	const bases = getTrackBases(), basesZ = getTrackBasesZ();
+	let bestDist = 1e9, bestPillar = -1;
+	for (let i = 0; i < bases.length; i++) {
+		const dx = x - bases[i];
+		const dz = z - basesZ[i];
+		const d = dx * dx + dz * dz;
+		if (d < bestDist) { bestDist = d; bestPillar = i; }
+	}
+	return bestPillar;
+}
+
+function updateTileSideMaterials(rec: TileRecord) {
+	if (rec.mesh.userData.hand) {
+		const mat = getContinentSideMaterial(rec.iso);
+		const mats = rec.mesh.material as THREE.Material[];
+		[0, 1, 4, 5].forEach(idx => {
+			if (mats[idx]) mats[idx].dispose();
+			mats[idx] = mat;
+		});
+		return;
+	}
+
+	const pillarIndex = getPillarIndexAt(rec.mesh.position.x, rec.mesh.position.z);
+	const targetCont = assignedPillarContinents[pillarIndex];
+	const actualCont = continentOf(rec.iso);
+	const isMisplaced = actualCont !== targetCont;
+
+	const useRed = showMisplacedHints && currentLevelConfig.id <= 3 && isMisplaced;
+	const color = useRed ? 0xff4444 : 0xeeeeee;
+
+	const mats = rec.mesh.material as THREE.Material[];
+	[0, 1, 4, 5].forEach(idx => {
+		const m = mats[idx] as THREE.MeshPhongMaterial;
+		if (m) m.color.setHex(color);
+	});
+}
+
+function updateAllTileMaterials() {
+	tileRecords.forEach(r => updateTileSideMaterials(r));
 }
 
 // -----------------------------------------------------------------------------
@@ -789,7 +863,8 @@ function populateTracksWithTiles(levels = 10) {
 		const x = bases[i];
 		const baseZ = basesZ[i];
 		for (let l = 0; l < levels; l++) {
-			createTileAt(new THREE.Vector3(x, y0 + l * TILE.layerStepY, baseZ), assignment[i][l]);
+			const rec = createTileAt(new THREE.Vector3(x, y0 + l * TILE.layerStepY, baseZ), assignment[i][l]);
+			updateTileSideMaterials(rec);
 		}
 	}
 
@@ -805,6 +880,7 @@ function spawnOutsideTile(levels: number) {
 	const iso = rem.length ? rem[Math.floor(rng() * rem.length)] : UN193_ISO2[Math.floor(rng() * UN193_ISO2.length)];
 	const hand = createTileAt(new THREE.Vector3(hX, y, 0), iso);
 	hand.mesh.userData.hand = true; hand.mesh.scale.set(1.1, 1.1, 1.1);
+	updateTileSideMaterials(hand);
 	setTimeout(() => updateHandLabelFromCurrentHand(), 0);
 }
 
@@ -1222,6 +1298,11 @@ function createSettingsUI() {
 	};
 
 	addToggle('Camera Lock', 'cam-lock', (v) => { controls.enabled = !v; });
+	addToggle('Show Hints', 'show-hints', (v) => {
+		showMisplacedHints = v;
+		saveHintsToggle(v);
+		updateAllTileMaterials();
+	}, showMisplacedHints);
 
 	// Version Info
 	const ver = document.createElement('div');
@@ -1432,42 +1513,101 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 		if (!gameActive) { startTimer(); }
 	}
 
-	interactionLockUntil = Date.now() + 500;
+	interactionLockUntil = Date.now() + 650;
 
 	const top = pillar[pillar.length - 1];
 	const bottom = pillar[0];
 	const handPos = hand.mesh.position.clone();
-	const bottomPos = bottom.mesh.position.clone(); // Target for Hand
+	const bottomPos = bottom.mesh.position.clone();
 
-	// Cycle Logic:
-	// 1. Hand -> Bottom
-	// 2. Pillar[0...N-2] -> Shift Up
-	// 3. Top -> Hand
+	// Kinetic Arc Implementation (Restored Shift-UP Logic)
+	const duration = 450;
+	const staggerMs = 25;
 
-	const animateMove = (m: THREE.Mesh, to: Vec3) => {
-		const s = m.position.clone(), start = performance.now();
-		const step = (now: number) => {
-			const t = Math.min(1, (now - start) / 300); m.position.lerpVectors(s, to, t);
-			if (t < 1) requestAnimationFrame(step);
+	// 1. Hand moves to Bottom position via "Land and Slide"
+	const sH = hand.mesh.position.clone();
+	const durationH = 650;
+	const leftPos = bottomPos.clone();
+	leftPos.x -= TILE.width * 1.5; // Position to the left of the pillar (over labels)
+	const startH = performance.now();
+
+	const animateHand = (now: number) => {
+		const elapsed = now - startH;
+		const tTotal = Math.min(1, elapsed / durationH);
+
+		if (tTotal < 0.65) {
+			// Phase 1: Arcing to the LEFT position
+			const t = tTotal / 0.65;
+			const eased = Easing.easeOutQuad(t);
+			hand.mesh.position.lerpVectors(sH, leftPos, eased);
+			const arc = Math.sin(t * Math.PI) * 0.8; // Reduced arc height: barely leaving the board
+			hand.mesh.position.y = sH.y + (leftPos.y - sH.y) * eased + arc;
+		} else {
+			// Phase 2: Sliding horizontally from left into the slot
+			const t = (tTotal - 0.65) / 0.35;
+			const eased = Easing.easeInOutQuad(t);
+			hand.mesh.position.lerpVectors(leftPos, bottomPos, eased);
+			hand.mesh.position.y = bottomPos.y; // Keep it on the floor/slot level
+		}
+
+		if (tTotal < 1) requestAnimationFrame(animateHand);
+		else {
+			hand.mesh.position.copy(bottomPos);
+			hand.mesh.scale.set(1, 1, 1);
+		}
+	};
+	requestAnimationFrame(animateHand);
+
+	// 2. Pillar items shift UP with Stagger and Elastic Easing
+	for (let i = 0; i < pillar.length - 1; i++) {
+		const m = pillar[i].mesh;
+		const s = m.position.clone();
+		const nextPos = pillar[i + 1].mesh.position.clone();
+		const start = performance.now() + i * staggerMs;
+
+		const animatePillarTile = (now: number) => {
+			if (now < start) { requestAnimationFrame(animatePillarTile); return; }
+			const t = Math.min(1, (now - start) / (duration - 50));
+			const eased = Easing.backOut(t);
+
+			m.position.lerpVectors(s, nextPos, eased);
+
+			if (t < 1) requestAnimationFrame(animatePillarTile);
 			else {
-				if (m.userData.hand) m.scale.set(1.1, 1.1, 1.1); else m.scale.set(1, 1, 1);
+				m.position.copy(nextPos);
+				m.scale.set(1, 1, 1);
 			}
 		};
-		requestAnimationFrame(step);
-	};
-
-	// Hand moves to Bottom position
-	animateMove(hand.mesh, bottomPos);
-
-	// Pillar items shift up
-	for (let i = 0; i < pillar.length - 1; i++) {
-		// P[i] moves to P[i+1] position
-		const nextPos = pillar[i + 1].mesh.position.clone();
-		animateMove(pillar[i].mesh, nextPos);
+		requestAnimationFrame(animatePillarTile);
 	}
 
-	// Top moves to Hand position
-	animateMove(top.mesh, handPos);
+	// 3. Top moves to Hand position via High Parabolic Arc + Tilt
+	const sT = top.mesh.position.clone();
+	const startT = performance.now() + 50; // Slight delay for weight
+	const animateTop = (now: number) => {
+		if (now < startT) { requestAnimationFrame(animateTop); return; }
+		const t = Math.min(1, (now - startT) / (duration + 100));
+		const eased = Easing.easeOutQuad(t);
+
+		top.mesh.position.x = sT.x + (handPos.x - sT.x) * eased;
+		top.mesh.position.z = sT.z + (handPos.z - sT.z) * eased;
+
+		// High Arc Y: Rise up
+		const arc = Math.sin(t * Math.PI) * 4.0;
+		top.mesh.position.y = sT.y + (handPos.y - sT.y) * t + arc;
+
+		// Subtle Tilt
+		const tilt = Math.sin(t * Math.PI) * 0.2;
+		top.mesh.rotation.z = tilt;
+
+		if (t < 1) requestAnimationFrame(animateTop);
+		else {
+			top.mesh.position.copy(handPos);
+			top.mesh.rotation.z = 0;
+			top.mesh.scale.set(1.1, 1.1, 1.1);
+		}
+	};
+	requestAnimationFrame(animateTop);
 
 	// Time Feedback (Any Level with Timer)
 	if (gameActive && currentLevelConfig.timer !== 'None') {
@@ -1486,7 +1626,13 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 	hand.mesh.userData.hand = false;
 	top.mesh.userData.hand = true;
 
-	setTimeout(() => { updateTrackLabels(); updateHandLabelFromCurrentHand(); interactionLockUntil = 0; }, 350);
+	setTimeout(() => {
+		updateTrackLabels();
+		updateHandLabelFromCurrentHand();
+		updateTileSideMaterials(hand);
+		updateTileSideMaterials(top);
+		interactionLockUntil = 0;
+	}, duration + 200);
 }
 
 // -----------------------------------------------------------------------------
