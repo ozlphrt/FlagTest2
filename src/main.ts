@@ -44,7 +44,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.3.0';
+const CURRENT_VERSION = 'v1.3.1';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1741,7 +1741,7 @@ function showUpdateNotification(isForce = false) {
 
 	const text = document.createElement('div');
 	text.innerHTML = `<div style="font-weight:700; font-size:16px">Update Available</div>
-					 <div style="font-size:13px; opacity:0.9">Version 1.3.0 is ready</div>`;
+					 <div style="font-size:13px; opacity:0.9">Version 1.3.1 is ready</div>`;
 	div.appendChild(text);
 
 	const btn = document.createElement('button');
@@ -1807,6 +1807,36 @@ function registerServiceWorker() {
 		});
 	}
 }
+
+function animateLoop() {
+	requestAnimationFrame(animateLoop);
+	controls.update();
+	updateTimerDisplay();
+
+	// Flash 100% labels
+	const now = Date.now();
+	trackLabelsGroup.children.forEach((child: any) => {
+		if (child.userData.is100) {
+			if (child.userData.flashStart) {
+				const elapsed = now - child.userData.flashStart;
+				if (elapsed < 1000) { // 1 sec total
+					// 5 flashes: 100ms Bright, 100ms Cyan
+					const step = Math.floor(elapsed / 100);
+					const isBright = step % 2 === 0;
+					child.material.color.setHex(isBright ? 0xffffff : 0x00ffff);
+				} else {
+					child.userData.flashStart = 0; // Stop flashing
+					child.material.color.setHex(0x00ffff); // Stable Cyan
+				}
+			} else {
+				child.material.color.setHex(0x00ffff); // Ensure stable Cyan
+			}
+		}
+	});
+
+	renderer.render(scene, camera);
+}
+animateLoop();
 
 // Initial check and start intervals
 checkVersion();
