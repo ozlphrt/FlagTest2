@@ -44,7 +44,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.3.2';
+const CURRENT_VERSION = 'v1.3.3';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -81,6 +81,7 @@ let tileRecords: TileRecord[] = [];
 let currentLevelIndex = loadProgress();
 let currentLevelConfig: LevelConfig = LEVELS.find(l => l.id === currentLevelIndex) || LEVELS[0];
 let levelPureAchieved = false;
+const flagMissCounters = new Map<string, number>();
 let modalOpen = false;
 let interactionLockUntil = 0;
 let autoSeedOnLoad = true;
@@ -142,15 +143,31 @@ controls.dampingFactor = 0.03; // Heavy inertia (hard to stop)
 controls.rotateSpeed = 0.3;    // High resistance (hard to start)
 controls.enabled = true;
 
-const hemi = new THREE.HemisphereLight(0xffffff, 0x334466, 0.8);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x334466, 0.85);
 scene.add(hemi);
-const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-dir.position.set(10, 20, 10);
+
+const dir = new THREE.DirectionalLight(0xffffff, 0.95);
+dir.position.set(12, 22, 10);
 dir.castShadow = true;
+// Set high shadow map resolution for sharp/clean shadows
+dir.shadow.mapSize.width = 2048;
+dir.shadow.mapSize.height = 2048;
+// Configure shadow camera frustum to cover all stacks and hand tile
+dir.shadow.camera.left = -12;
+dir.shadow.camera.right = 12;
+dir.shadow.camera.top = 12;
+dir.shadow.camera.bottom = -12;
+dir.shadow.camera.near = 0.5;
+dir.shadow.camera.far = 45;
+dir.shadow.bias = -0.0005;
 scene.add(dir);
-const amb = new THREE.AmbientLight(0xffffff, 0.6);
+
+const amb = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(amb);
 // hoverLight removed
+
+// Configure renderer to use soft shadow mapping
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const baseGeo = new THREE.PlaneGeometry(500, 500);
 const baseMatFloor = new THREE.MeshLambertMaterial({ color: 0x3e603e });
@@ -158,6 +175,24 @@ const floor = new THREE.Mesh(baseGeo, baseMatFloor);
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
+
+// Add gridlines on the green base (even denser grid)
+const gridHelper = new THREE.GridHelper(150, 300, 0x182818, 0x182818);
+gridHelper.position.y = 0.01;
+scene.add(gridHelper);
+
+// Add soft semi-transparent white circle under the free tile (bigger and thicker)
+const circleGeo = new THREE.RingGeometry(TILE.width * 0.70, TILE.width * 1.05, 64);
+const circleMat = new THREE.MeshBasicMaterial({ 
+	color: 0xffffff, 
+	side: THREE.DoubleSide,
+	transparent: true,
+	opacity: 0.15
+});
+const handCircle = new THREE.Mesh(circleGeo, circleMat);
+handCircle.rotation.x = -Math.PI / 2;
+handCircle.position.set(-3.6, 0.02, 0);
+scene.add(handCircle);
 
 scene.add(tilesGroup);
 scene.add(tracksGroup);
@@ -289,6 +324,10 @@ function updateTileSideMaterials(rec: TileRecord) {
 			if (mats[idx]) mats[idx].dispose();
 			mats[idx] = mat;
 		});
+		rec.mesh.rotation.y = 0;
+		if (rec.topMat && (rec.topMat as THREE.MeshPhongMaterial).color) {
+			(rec.topMat as THREE.MeshPhongMaterial).color.setHex(0xffffff);
+		}
 		return;
 	}
 
@@ -297,14 +336,36 @@ function updateTileSideMaterials(rec: TileRecord) {
 	const actualCont = continentOf(rec.iso);
 	const isMisplaced = actualCont !== targetCont;
 
-	const useRed = showMisplacedHints && currentLevelConfig.id <= 3 && isMisplaced;
-	const color = useRed ? 0xff4444 : 0xeeeeee;
+	const showHint = showMisplacedHints && isMisplaced;
 
+	// Reset side colors to standard ivory/white (no more red sides)
+	const color = 0xeeeeee;
 	const mats = rec.mesh.material as THREE.Material[];
 	[0, 1, 4, 5].forEach(idx => {
 		const m = mats[idx] as THREE.MeshPhongMaterial;
 		if (m) m.color.setHex(color);
 	});
+
+	// Intuitive Hint: Tilt the tile slightly (crooked)
+	if (showHint) {
+		// Generate a stable, unique tilt angle per tile using a deterministic seed
+		const seed = hashIso(rec.iso) + Math.round(rec.mesh.position.y * 100);
+		const rng = mulberry32(seed);
+		
+		const dir = rng() < 0.5 ? -1 : 1;
+		const minRad = 10 * Math.PI / 180;
+		const maxRad = 35 * Math.PI / 180;
+		const angle = dir * (minRad + rng() * (maxRad - minRad));
+		
+		rec.mesh.rotation.y = angle;
+	} else {
+		rec.mesh.rotation.y = 0; // Perfectly aligned
+	}
+
+	// Always keep the flag face at full brightness
+	if (rec.topMat && (rec.topMat as THREE.MeshPhongMaterial).color) {
+		(rec.topMat as THREE.MeshPhongMaterial).color.setHex(0xffffff);
+	}
 }
 
 function updateAllTileMaterials() {
@@ -423,23 +484,19 @@ function makeTextLabel(text: string, sub?: string, subColor: string = '#ffffff')
 
 	if (sub) {
 		// Country Name (sub) - Main Feature
-		// Start larger because we reduced the plane width
 		let fontSub = 90;
 		const maxWSub = canvas.width - 20;
 		let lines: string[] = [sub];
 
-		// Iteratively reduce font size until it fits
 		while (fontSub > 30) {
 			ctx.font = `bold ${fontSub}px ${fontStack}`;
 			lines = wrapText(ctx, sub, maxWSub);
 
-			// Check vertical fit
 			const totalH = lines.length * (fontSub * 1.1);
-			if (totalH > canvas.height * 0.6) { // Use max 60% of height for Name
+			if (totalH > canvas.height * 0.6) {
 				fontSub -= 5;
 				continue;
 			}
-			// Check horizontal fit (rare due to wrap, but single words check)
 			const longestWordW = sub.split(' ').reduce((max, w) => Math.max(max, ctx.measureText(w).width), 0);
 			if (longestWordW > maxWSub) {
 				fontSub -= 5;
@@ -451,7 +508,6 @@ function makeTextLabel(text: string, sub?: string, subColor: string = '#ffffff')
 		ctx.fillStyle = subColor;
 		const lineHeight = fontSub * 1.1;
 		const blockHeight = lines.length * lineHeight;
-		// Center block in upper portion. Continent is at bottom.
 		const startY = (canvas.height * 0.45) - (blockHeight / 2) + (fontSub * 0.3);
 
 		lines.forEach((line, i) => {
@@ -777,8 +833,8 @@ function buildBalancedIsoPool(seed: number, perCount: number): string[] {
 }
 
 function clearTracks() { while (tracksGroup.children.length) tracksGroup.remove(tracksGroup.children[0]); }
-function getTrackBases() { const px = TILE.spacingX * 0.8; return [px, px, px, px, px]; }
-function getTrackBasesZ() { const sz = TILE.spacingZ * 1.25, startZ = -TILE.spacingZ * 2.5; return [0, 1, 2, 3, 4].map(i => startZ + i * sz); }
+function getTrackBases() { return [-0.4, 1.6, 3.0, 1.6, -0.4]; }
+function getTrackBasesZ() { return [-6.0, -3.0, 0.0, 3.0, 6.0]; }
 
 function buildTracks() {
 	clearTracks(); if (!tracksState.visible) return;
@@ -873,12 +929,12 @@ function populateTracksWithTiles(levels = 10) {
 }
 
 function spawnOutsideTile(levels: number) {
-	const hX = -TILE.spacingX * 1.5, y = TILE.height * 0.5;
+	const hX = -3.6, hZ = 0.0, y = TILE.height * 0.5;
 	const used = new Set(tileRecords.map(r => r.iso));
 	const rem = UN193_ISO2.filter(c => !used.has(c));
 	const rng = mulberry32(randomState.seed + Math.floor(performance.now()));
 	const iso = rem.length ? rem[Math.floor(rng() * rem.length)] : UN193_ISO2[Math.floor(rng() * UN193_ISO2.length)];
-	const hand = createTileAt(new THREE.Vector3(hX, y, 0), iso);
+	const hand = createTileAt(new THREE.Vector3(hX, y, hZ), iso);
 	hand.mesh.userData.hand = true; hand.mesh.scale.set(1.1, 1.1, 1.1);
 	updateTileSideMaterials(hand);
 	setTimeout(() => updateHandLabelFromCurrentHand(), 0);
@@ -958,33 +1014,33 @@ function updateTrackLabels() {
 		// Always show the Target Name
 		const labelText = targetVal;
 
-		// For 100%, we want to flash on achievement, then stay stable Cyan.
-		const is100 = (purity === 100 && total >= 1); // Ensure we have at least 1 tile to count as 100% done
-		const colorToUse = is100 ? '#ffffff' : getColorForPercentage(purity);
+		// For >= 90% (OK to pass), we want to flash on achievement, then stay stable Cyan.
+		const isComplete = (purity >= 90 && total >= 1); // Ensure we have at least 1 tile and >= 90% done
+		const colorToUse = isComplete ? '#ffffff' : getColorForPercentage(purity);
 
 		const label = makeTextLabel(labelText, `${purity}%`, colorToUse);
 
-		if (is100) {
+		if (isComplete) {
 			label.userData.is100 = true;
 			label.material.color.setHex(0x00ffff); // Default stable Cyan
 
-			// Trigger flash if it wasn't 100% before.
-			if (pillarStates[i] !== 100) {
+			// Trigger flash if it wasn't complete before.
+			if (pillarStates[i] < 90) {
 				label.userData.flashStart = Date.now();
 			}
 		}
 		pillarStates[i] = purity;
 
-		// Position label
-		label.position.set(bases[i] - TILE.width * 1.0, 0.03, basesZ[i]);
+		// Position label in the free channel to the left of the stacks (no overlaps)
+		label.position.set(bases[i] - 2.1, 0.03, basesZ[i]);
 		label.rotation.x = -Math.PI / 2;
 		trackLabelsGroup.add(label);
 
-		if (pillarStates[i] === 100) completedPillars++;
+		if (pillarStates[i] >= 90) completedPillars++;
 	}
 
-	// Win Condition: 4 out of 5 Pillars complete
-	if (completedPillars >= 4 && !modalOpen && tileRecords.length > 0) handleLevelUp();
+	// Win Condition: All 5 Pillars complete (with 90%+ purity)
+	if (completedPillars >= 5 && !modalOpen && tileRecords.length > 0) handleLevelUp();
 }
 
 
@@ -993,6 +1049,119 @@ let startTime = 0;
 let blitzRemaining = 0;
 let gameActive = false;
 let blitzMode = false;
+
+let audioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+	if (!audioCtx) {
+		audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+	}
+	return audioCtx;
+}
+
+function playSoundCorrect() {
+	try {
+		const ctx = getAudioContext();
+		if (ctx.state === 'suspended') {
+			ctx.resume().then(() => playSoundCorrectNode(ctx));
+		} else {
+			playSoundCorrectNode(ctx);
+		}
+	} catch (e) {
+		console.warn("AudioContext correct sound failed:", e);
+	}
+}
+
+function playSoundCorrectNode(ctx: AudioContext) {
+	const now = ctx.currentTime;
+	const osc = ctx.createOscillator();
+	const gain = ctx.createGain();
+	
+	// Soft C6-E6 high chime, very low volume (0.02) and extremely short (150ms)
+	osc.type = 'sine';
+	osc.frequency.setValueAtTime(1046.50, now); // C6
+	osc.frequency.setValueAtTime(1318.51, now + 0.05); // E6
+	
+	gain.gain.setValueAtTime(0.025, now);
+	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+	
+	osc.connect(gain);
+	gain.connect(ctx.destination);
+	osc.start(now);
+	osc.stop(now + 0.15);
+}
+
+function playSoundWrong() {
+	try {
+		const ctx = getAudioContext();
+		if (ctx.state === 'suspended') {
+			ctx.resume().then(() => playSoundWrongNode(ctx));
+		} else {
+			playSoundWrongNode(ctx);
+		}
+	} catch (e) {
+		console.warn("AudioContext wrong sound failed:", e);
+	}
+}
+
+function playSoundWrongNode(ctx: AudioContext) {
+	const now = ctx.currentTime;
+	const osc = ctx.createOscillator();
+	const gain = ctx.createGain();
+	
+	// Softer low triangle thud (frequency sliding down)
+	osc.type = 'triangle';
+	osc.frequency.setValueAtTime(130, now);
+	osc.frequency.linearRampToValueAtTime(80, now + 0.18);
+	
+	gain.gain.setValueAtTime(0.04, now);
+	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+	const filter = ctx.createBiquadFilter();
+	filter.type = 'lowpass';
+	filter.frequency.setValueAtTime(300, now);
+
+	osc.connect(filter);
+	filter.connect(gain);
+	gain.connect(ctx.destination);
+	osc.start(now);
+	osc.stop(now + 0.2);
+}
+
+function playSoundLevelComplete() {
+	try {
+		const ctx = getAudioContext();
+		if (ctx.state === 'suspended') {
+			ctx.resume().then(() => playSoundLevelCompleteNodes(ctx));
+		} else {
+			playSoundLevelCompleteNodes(ctx);
+		}
+	} catch (e) {
+		console.warn("AudioContext complete sound failed:", e);
+	}
+}
+
+function playSoundLevelCompleteNodes(ctx: AudioContext) {
+	const now = ctx.currentTime;
+	const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; // C Major arpeggio
+	
+	// Soft, ambient arpeggio chord (0.015 volume)
+	notes.forEach((freq, idx) => {
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+		osc.type = 'sine';
+		osc.frequency.setValueAtTime(freq, now + idx * 0.055);
+		
+		gain.gain.setValueAtTime(0, now);
+		gain.gain.linearRampToValueAtTime(0.02, now + idx * 0.055 + 0.01);
+		gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.3);
+		
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+		osc.start(now + idx * 0.055);
+		osc.stop(now + idx * 0.055 + 0.3);
+	});
+}
 
 // Initialize the panel immediately to ensure timerDiv is ready
 ensureStatusPanel();
@@ -1087,7 +1256,7 @@ function updateTimerDisplay() {
 	}
 }
 
-function addTimeBonus(seconds: number) {
+function addTimeBonus(seconds: number, countryName?: string) {
 	if (!gameActive) return;
 	if (blitzMode) {
 		blitzEndTime += seconds * 1000;
@@ -1095,7 +1264,7 @@ function addTimeBonus(seconds: number) {
 		// Reduce elapsed time by shifting startTime forward
 		startTime += seconds * 1000;
 	}
-	showFloatingText(`+${seconds}s`, '#00ff00');
+	showFloatingText(`+${seconds}s`, '#00ff00', countryName);
 }
 
 function applyTimePenalty(seconds: number) {
@@ -1103,45 +1272,149 @@ function applyTimePenalty(seconds: number) {
 	if (blitzMode) {
 		blitzEndTime -= seconds * 1000;
 	} else if (currentLevelConfig.timer === 'CountUp') {
-		// Increase elapsed time by shifting startTime backward
 		startTime -= seconds * 1000;
 	}
-	showFloatingText(`-${seconds}s`, '#ff0000');
-	timerDiv.style.color = '#ff0000';
+	showFloatingText(`-${seconds}s`, '#ff4444');
+	timerDiv.style.color = '#ff4444';
 	setTimeout(() => { if (gameActive) timerDiv.style.color = 'white'; }, 500);
 }
 
-function showFloatingText(text: string, color: string) {
-	const el = document.createElement('div');
-	el.innerText = text;
-	Object.assign(el.style, {
-		position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%) scale(0.5)',
-		color: color, fontSize: '100px', fontWeight: '900', pointerEvents: 'none',
-		transition: 'all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)', zIndex: '2147483647',
-		textShadow: '0 0 20px rgba(0,0,0,0.8), 0 0 40px ' + color,
-		opacity: '0', filter: 'blur(10px)',
+function applyTimePenaltyWithTeasing(seconds: number, text: string, subtext?: string, isSarcastic = false) {
+	if (!gameActive) return;
+	if (blitzMode) {
+		blitzEndTime -= seconds * 1000;
+	} else if (currentLevelConfig.timer === 'CountUp') {
+		startTime -= seconds * 1000;
+	}
+	showFloatingText(text, '#ff4444', subtext, isSarcastic);
+	timerDiv.style.color = '#ff4444';
+	setTimeout(() => { if (gameActive) timerDiv.style.color = 'white'; }, 500);
+}
+
+function shakeTileMesh(mesh: THREE.Mesh) {
+	const start = performance.now();
+	const duration = 400; // 400ms shake duration
+	const originalRotY = mesh.rotation.y;
+	
+	const animateShake = (now: number) => {
+		const elapsed = now - start;
+		const t = Math.min(1, elapsed / duration);
+		const wobble = Math.sin(t * Math.PI * 8) * 0.25 * (1 - t);
+		mesh.rotation.y = originalRotY + wobble;
+		
+		if (t < 1) {
+			requestAnimationFrame(animateShake);
+		} else {
+			mesh.rotation.y = originalRotY;
+		}
+	};
+	requestAnimationFrame(animateShake);
+}
+
+function showFloatingText(text: string, color: string, countryName?: string, isSarcastic = false) {
+	const container = document.createElement('div');
+	
+	// Anchor at -30% horizontally to match left: 30%, guaranteeing 0% bleed at the left edge
+	Object.assign(container.style, {
+		position: 'fixed', top: '68%', left: '30%', transform: 'translate(-30%, -50%) scale(0.5)',
+		display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+		pointerEvents: 'none', zIndex: '2147483647', opacity: '0', filter: 'blur(10px)',
 		fontFamily: '"Segoe UI", "Roboto", system-ui, sans-serif',
+		transition: 'all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+		maxWidth: '65vw',
+		boxSizing: 'border-box'
+	});
+
+	// Scale font size down for status text messages (like "Correct! 🎉" or "Wrong!") vs numeric offsets (like "+5s")
+	let timeFontSize = 90;
+	if (!/^[+-]\d+s$/.test(text)) {
+		timeFontSize = 38;
+	}
+
+	// Time element with white outline
+	const timeEl = document.createElement('div');
+	timeEl.innerText = text;
+	Object.assign(timeEl.style, {
+		fontSize: `${timeFontSize}px`, fontWeight: '900', color: color,
+		webkitTextStroke: timeFontSize > 40 ? '2.2px white' : '1.2px white',
+		textStroke: timeFontSize > 40 ? '2.2px white' : '1.2px white',
+		textShadow: '0 0 25px ' + color + ', 0 10px 20px rgba(0,0,0,0.8)',
+		lineHeight: '1.0',
 		whiteSpace: 'nowrap'
 	});
-	document.body.appendChild(el);
+	container.appendChild(timeEl);
 
-	// Animate in - Use double RAF to ensure browser registers initial state
+	// Country name element (dynamically scaled font to prevent two-line splits)
+	if (countryName) {
+		const nameEl = document.createElement('div');
+		nameEl.innerText = countryName;
+		
+		// Dynamically scale font size based on character length
+		let dynamicFontSize = 34;
+		if (countryName.length > 25) {
+			dynamicFontSize = 18;
+		} else if (countryName.length > 18) {
+			dynamicFontSize = 22;
+		} else if (countryName.length > 12) {
+			dynamicFontSize = 28;
+		}
+
+		Object.assign(nameEl.style, {
+			fontSize: `${dynamicFontSize}px`, fontWeight: '800', color: '#ffffff',
+			textShadow: '0 2px 10px rgba(0,0,0,0.9)',
+			marginTop: '12px',
+			background: 'rgba(0,0,0,0.7)',
+			padding: '6px 16px',
+			borderRadius: '12px',
+			border: '1px solid rgba(255,255,255,0.15)',
+			whiteSpace: 'nowrap',
+			textAlign: 'center',
+			maxWidth: '65vw',
+			boxSizing: 'border-box'
+		});
+		container.appendChild(nameEl);
+	}
+
+	document.body.appendChild(container);
+
+	// Sarcastic wobble animation
+	if (isSarcastic) {
+		const startShake = performance.now();
+		const durationShake = 600;
+		const animateContainerShake = (now: number) => {
+			const elapsed = now - startShake;
+			const t = Math.min(1, elapsed / durationShake);
+			if (t < 1) {
+				const dx = (Math.random() * 2 - 1) * 15 * (1 - t);
+				const dy = (Math.random() * 2 - 1) * 15 * (1 - t);
+				container.style.marginLeft = `${dx}px`;
+				container.style.marginTop = `${dy}px`;
+				requestAnimationFrame(animateContainerShake);
+			} else {
+				container.style.marginLeft = '0px';
+				container.style.marginTop = '0px';
+			}
+		};
+		requestAnimationFrame(animateContainerShake);
+	}
+
+	// Animate in
 	requestAnimationFrame(() => {
 		requestAnimationFrame(() => {
-			el.style.opacity = '1';
-			el.style.transform = 'translate(-50%, -50%) scale(1)';
-			el.style.filter = 'blur(0px)';
+			container.style.opacity = '1';
+			container.style.transform = 'translate(-30%, -50%) scale(1)';
+			container.style.filter = 'blur(0px)';
 		});
 	});
 
 	// Animate out
 	setTimeout(() => {
-		el.style.opacity = '0';
-		el.style.transform = 'translate(-50%, -100%) scale(1.5)';
-		el.style.filter = 'blur(20px)';
-	}, 600);
+		container.style.opacity = '0';
+		container.style.transform = 'translate(-30%, -100%) scale(1.3)';
+		container.style.filter = 'blur(20px)';
+	}, 700);
 
-	setTimeout(() => el.remove(), 1200);
+	setTimeout(() => container.remove(), 1300);
 }
 
 function handleGameOver(reason: string) {
@@ -1153,6 +1426,7 @@ function handleGameOver(reason: string) {
 }
 
 function handleLevelUp() {
+	playSoundLevelComplete();
 	gameActive = false;
 	const nextId = currentLevelConfig.id + 1;
 	const nextConfig = LEVELS.find(l => l.id === nextId);
@@ -1304,6 +1578,30 @@ function createSettingsUI() {
 		updateAllTileMaterials();
 	}, showMisplacedHints);
 
+	// Reset to Level 1 Button
+	const resetBtn = document.createElement('button');
+	resetBtn.innerText = 'Reset to Level 1';
+	Object.assign(resetBtn.style, {
+		background: '#dc2626', color: '#ffffff', border: 'none',
+		padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
+		fontWeight: '700', cursor: 'pointer', marginTop: '10px',
+		transition: 'background 0.2s', width: '100%'
+	});
+	resetBtn.onmouseenter = () => resetBtn.style.background = '#b91c1c';
+	resetBtn.onmouseleave = () => resetBtn.style.background = '#dc2626';
+	resetBtn.onclick = () => {
+		if (confirm('Are you sure you want to reset all progress back to Level 1?')) {
+			saveProgress(1);
+			currentLevelIndex = 1;
+			currentLevelConfig = LEVELS[0];
+			repopulatePilesRandomUnique();
+			updateLevelBadge();
+			updateTrackLabels();
+			closeMenu();
+		}
+	};
+	menu.appendChild(resetBtn);
+
 	// Version Info
 	const ver = document.createElement('div');
 	ver.innerText = typeof CURRENT_VERSION !== 'undefined' ? CURRENT_VERSION : 'v1.2.3';
@@ -1333,11 +1631,15 @@ function createSettingsUI() {
 			b.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
 		};
 		b.onclick = () => {
-			const timeRem = blitzEndTime - Date.now();
-			if (gameActive && blitzMode && timeRem > (cost * 1000 + 1000)) {
+			if (!gameActive) return;
+			if (blitzMode) {
+				const timeRem = blitzEndTime - Date.now();
+				if (timeRem > (cost * 1000 + 1000)) {
+					applyTimePenalty(cost);
+					onClick();
+				}
+			} else {
 				applyTimePenalty(cost);
-				onClick();
-			} else if (gameActive && !blitzMode) {
 				onClick();
 			}
 		};
@@ -1386,14 +1688,50 @@ function createSettingsUI() {
 // -----------------------------------------------------------------------------
 
 function applyCameraActionPreset() {
-	// Max zoom optimized with portrait support and Extra Padding (safety factor 9.0)
-	const isPortrait = camera.aspect < 0.8; // Stricter portrait check
-	// Base Y for Landscape (wide aspect) ~11.5
-	// If portrait, we need to cover specific Width with padding.
-	const y = isPortrait ? 9.0 / camera.aspect : 11.5;
+	// 1. Calculate bounding box of all active tiles to dynamically adjust zoom
+	const box = new THREE.Box3();
+	let hasTiles = false;
 
-	camera.position.set(-0.6, y, 2.0);
-	controls.target.set(-0.6, 1.0, 0);
+	tileRecords.forEach(rec => {
+		if (rec.mesh) {
+			box.expandByObject(rec.mesh);
+			hasTiles = true;
+		}
+	});
+
+	// Dynamic bounds with safe defaults
+	const minX = hasTiles ? box.min.x : -3.6;
+	const maxX = hasTiles ? box.max.x : 3.0;
+	const minZ = hasTiles ? box.min.z : -6.0;
+	const maxZ = hasTiles ? box.max.z : 6.0;
+	const maxY = hasTiles ? box.max.y : 1.5;
+
+	const centerX = (minX + maxX) / 2;
+	const centerZ = (minZ + maxZ) / 2;
+	
+	const widthX = maxX - minX;
+	const depthZ = maxZ - minZ;
+
+	// Calculate vertical FOV in radians
+	const vFovRad = (camera.fov * Math.PI) / 180;
+	const halfVFovTan = Math.tan(vFovRad / 2);
+	const halfHFovTan = halfVFovTan * camera.aspect;
+
+	// Calculate required height (Y) to fit Z-depth and X-width
+	const yNeedZ = (depthZ / 2) / halfVFovTan;
+	const yNeedX = (widthX / 2) / halfHFovTan;
+
+	// Apply safe minimum heights (landscape: 11.5, portrait: scaled)
+	const isPortrait = camera.aspect < 0.8;
+	const minHeight = isPortrait ? 10.5 / camera.aspect : 11.5;
+	
+	// Final calculated camera height (Y) with 10% safety margin and stack height offset
+	let dynamicY = Math.max(yNeedZ, yNeedX) * 1.15;
+	dynamicY = Math.max(dynamicY, minHeight) + maxY * 0.5;
+
+	// Camera position offset slightly forward on Z to create a clean angled perspective
+	camera.position.set(centerX, dynamicY, centerZ + 2.0);
+	controls.target.set(centerX, maxY * 0.35, centerZ);
 
 	// Apply Limits
 	controls.minAzimuthAngle = -Math.PI / 9; // -20 deg
@@ -1402,7 +1740,6 @@ function applyCameraActionPreset() {
 	controls.maxPolarAngle = Math.PI / 4;    // 45 deg max trim
 	controls.enablePan = false;
 
-	camera.fov = 60;
 	camera.updateProjectionMatrix();
 	controls.update();
 }
@@ -1464,6 +1801,19 @@ window.addEventListener('resize', () => {
 	applyCameraActionPreset(); // Re-calc for aspect ratio
 });
 
+// Bulletproof Web Audio API unlocking for all desktop & mobile browsers
+const unlockAudio = () => {
+	try {
+		getAudioContext();
+	} catch (e) {
+		console.warn("Could not unlock AudioContext:", e);
+	}
+	window.removeEventListener('click', unlockAudio);
+	window.removeEventListener('touchend', unlockAudio);
+};
+window.addEventListener('click', unlockAudio);
+window.addEventListener('touchend', unlockAudio);
+
 function handlePileInteraction(clicked: THREE.Mesh) {
 	const bases = getTrackBases(), basesZ = getTrackBasesZ();
 
@@ -1513,44 +1863,32 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 		if (!gameActive) { startTimer(); }
 	}
 
-	interactionLockUntil = Date.now() + 650;
+	interactionLockUntil = Date.now() + 150;
 
 	const top = pillar[pillar.length - 1];
 	const bottom = pillar[0];
 	const handPos = hand.mesh.position.clone();
 	const bottomPos = bottom.mesh.position.clone();
 
-	// Kinetic Arc Implementation (Restored Shift-UP Logic)
-	const duration = 450;
-	const staggerMs = 25;
+	// Kinetic Arc Implementation (Accelerated for instant response feel)
+	const duration = 120;
+	const staggerMs = 5;
 
-	// 1. Hand moves to Bottom position via "Land and Slide"
+	// 1. Hand moves to Bottom position via ultra-fast direct arc
 	const sH = hand.mesh.position.clone();
-	const durationH = 650;
-	const leftPos = bottomPos.clone();
-	leftPos.x -= TILE.width * 1.5; // Position to the left of the pillar (over labels)
+	const durationH = 130;
 	const startH = performance.now();
 
 	const animateHand = (now: number) => {
 		const elapsed = now - startH;
-		const tTotal = Math.min(1, elapsed / durationH);
+		const t = Math.min(1, elapsed / durationH);
+		const eased = Easing.easeInOutQuad(t);
+		hand.mesh.position.lerpVectors(sH, bottomPos, eased);
+		
+		const arc = Math.sin(t * Math.PI) * 0.35;
+		hand.mesh.position.y = sH.y + (bottomPos.y - sH.y) * eased + arc;
 
-		if (tTotal < 0.65) {
-			// Phase 1: Arcing to the LEFT position
-			const t = tTotal / 0.65;
-			const eased = Easing.easeOutQuad(t);
-			hand.mesh.position.lerpVectors(sH, leftPos, eased);
-			const arc = Math.sin(t * Math.PI) * 0.8; // Reduced arc height: barely leaving the board
-			hand.mesh.position.y = sH.y + (leftPos.y - sH.y) * eased + arc;
-		} else {
-			// Phase 2: Sliding horizontally from left into the slot
-			const t = (tTotal - 0.65) / 0.35;
-			const eased = Easing.easeInOutQuad(t);
-			hand.mesh.position.lerpVectors(leftPos, bottomPos, eased);
-			hand.mesh.position.y = bottomPos.y; // Keep it on the floor/slot level
-		}
-
-		if (tTotal < 1) requestAnimationFrame(animateHand);
+		if (t < 1) requestAnimationFrame(animateHand);
 		else {
 			hand.mesh.position.copy(bottomPos);
 			hand.mesh.scale.set(1, 1, 1);
@@ -1558,7 +1896,7 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 	};
 	requestAnimationFrame(animateHand);
 
-	// 2. Pillar items shift UP with Stagger and Elastic Easing
+	// 2. Pillar items shift UP with tight stagger and quick Elastic snap
 	for (let i = 0; i < pillar.length - 1; i++) {
 		const m = pillar[i].mesh;
 		const s = m.position.clone();
@@ -1567,7 +1905,7 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 
 		const animatePillarTile = (now: number) => {
 			if (now < start) { requestAnimationFrame(animatePillarTile); return; }
-			const t = Math.min(1, (now - start) / (duration - 50));
+			const t = Math.min(1, (now - start) / (duration - 20));
 			const eased = Easing.backOut(t);
 
 			m.position.lerpVectors(s, nextPos, eased);
@@ -1581,23 +1919,23 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 		requestAnimationFrame(animatePillarTile);
 	}
 
-	// 3. Top moves to Hand position via High Parabolic Arc + Tilt
+	// 3. Top tile flies to Hand position instantly
 	const sT = top.mesh.position.clone();
-	const startT = performance.now() + 50; // Slight delay for weight
+	const startT = performance.now() + 5; 
+	const durationTop = 140;
+	
 	const animateTop = (now: number) => {
 		if (now < startT) { requestAnimationFrame(animateTop); return; }
-		const t = Math.min(1, (now - startT) / (duration + 100));
+		const t = Math.min(1, (now - startT) / durationTop);
 		const eased = Easing.easeOutQuad(t);
 
 		top.mesh.position.x = sT.x + (handPos.x - sT.x) * eased;
 		top.mesh.position.z = sT.z + (handPos.z - sT.z) * eased;
 
-		// High Arc Y: Rise up
-		const arc = Math.sin(t * Math.PI) * 4.0;
+		const arc = Math.sin(t * Math.PI) * 1.5;
 		top.mesh.position.y = sT.y + (handPos.y - sT.y) * t + arc;
 
-		// Subtle Tilt
-		const tilt = Math.sin(t * Math.PI) * 0.2;
+		const tilt = Math.sin(t * Math.PI) * 0.1;
 		top.mesh.rotation.z = tilt;
 
 		if (t < 1) requestAnimationFrame(animateTop);
@@ -1609,16 +1947,78 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 	};
 	requestAnimationFrame(animateTop);
 
-	// Time Feedback (Any Level with Timer)
-	if (gameActive && currentLevelConfig.timer !== 'None') {
+	// Feedback & Sound Effects (Runs on all levels, including non-timed Level 1)
+	if (gameActive) {
 		const handCont = continentOf(hand.iso);
 		const targetCont = assignedPillarContinents[bIdx];
+		const hasTimer = currentLevelConfig.timer !== 'None';
+		const bonus = hasTimer ? (currentLevelConfig.correctBonusSeconds ?? 5) : 0;
+		const penalty = hasTimer ? (currentLevelConfig.wrongPenaltySeconds ?? 5) : 0;
+
 		if (handCont === targetCont) {
-			const bonus = currentLevelConfig.correctBonusSeconds ?? 5; // Default 5s
-			if (bonus > 0) addTimeBonus(bonus);
+			playSoundCorrect();
+			resolveCountryName(hand.iso).then(countryName => {
+				if (hasTimer && bonus > 0) {
+					addTimeBonus(bonus, countryName);
+				} else {
+					showFloatingText("Correct! 🎉", '#00ff00', countryName);
+				}
+			});
 		} else {
-			const penalty = currentLevelConfig.wrongPenaltySeconds ?? 5; // Default 5s
-			if (penalty > 0) applyTimePenalty(penalty);
+			playSoundWrong();
+			
+			// Increment miss counter for this flag
+			const misses = (flagMissCounters.get(hand.iso) || 0) + 1;
+			flagMissCounters.set(hand.iso, misses);
+
+			if (misses === 2) {
+				// 2nd miss: Display the name of the country
+				resolveCountryName(hand.iso).then(countryName => {
+					if (hasTimer && penalty > 0) {
+						applyTimePenaltyWithTeasing(penalty, `-${penalty}s`, countryName);
+					} else {
+						showFloatingText("Wrong!", '#ff4444', countryName);
+					}
+				});
+			} else if (misses === 3) {
+				// 3rd miss: Display the country name and the continent
+				resolveCountryName(hand.iso).then(countryName => {
+					const cont = continentOf(hand.iso);
+					if (hasTimer && penalty > 0) {
+						applyTimePenaltyWithTeasing(penalty, `-${penalty}s`, `${countryName} (${cont})`);
+					} else {
+						showFloatingText("Wrong!", '#ff4444', `${countryName} (${cont})`);
+					}
+				});
+			} else if (misses >= 4) {
+				// 4th miss or more: Sarcastic/teasing animation!
+				resolveCountryName(hand.iso).then(countryName => {
+					const sarcasmOptions = [
+						"Again?! 🤦‍♂️",
+						"Seriously? 🤨",
+						"Geography 101, please! 📚",
+						"Maybe try another continent? 🗺️",
+						"Are we guessing now? 🎲",
+						"Google Maps is free! 📱"
+					];
+					const sarcasm = sarcasmOptions[Math.floor(Math.random() * sarcasmOptions.length)];
+					if (hasTimer && penalty > 0) {
+						applyTimePenaltyWithTeasing(penalty, `-${penalty}s`, sarcasm, true);
+					} else {
+						showFloatingText("Wrong!", '#ff4444', sarcasm, true);
+					}
+				});
+				
+				// Shake the tile that was just placed
+				shakeTileMesh(hand.mesh);
+			} else {
+				// 1st miss: Standard penalty
+				if (hasTimer && penalty > 0) {
+					applyTimePenalty(penalty);
+				} else {
+					showFloatingText("Wrong!", '#ff4444');
+				}
+			}
 		}
 	}
 
@@ -1632,7 +2032,7 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 		updateTileSideMaterials(hand);
 		updateTileSideMaterials(top);
 		interactionLockUntil = 0;
-	}, duration + 200);
+	}, 160);
 }
 
 // -----------------------------------------------------------------------------

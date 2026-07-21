@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Continent-Stack Layout Explorer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Three.js and OrbitControls from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --sidebar-bg: rgba(15, 23, 42, 0.85);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #f43f5e;
+            --border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #2b3a2a; /* Green table felt color matching user image */
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-light);
+        }
+
+        .app-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* 3D Canvas */
+        #canvas-container {
+            flex-grow: 1;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Sidebar UI */
+        .sidebar {
+            width: 380px;
+            height: 100%;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-right: 1px solid var(--border-color);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: 10px 0 40px rgba(0, 0, 0, 0.6);
+        }
+
+        header {
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 40%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin: 20px 0 10px 0;
+            font-weight: 700;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 4px;
+        }
+
+        /* Layout List */
+        .layout-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .layout-item {
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .layout-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .layout-item.active {
+            background: rgba(59, 130, 246, 0.12);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .layout-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .layout-name {
+            font-weight: 700;
+            font-size: 14px;
+            color: white;
+        }
+
+        .layout-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .stat-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Code Export button */
+        .btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            margin-top: auto;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Overlay HUD */
+        .hud-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            padding: 14px 24px;
+            border-radius: 30px;
+            pointer-events: none;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .hud-item {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .hud-value {
+            color: white;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        /* Modal Code Block */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 800px;
+            max-height: 80%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        pre {
+            background: #0f172a;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #38bdf8;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <!-- Sidebar Controls -->
+    <div class="sidebar">
+        <header>
+            <h1>Continent-Stack Layouts</h1>
+            <div class="subtitle">Mocking 10 arrangements of 5 stacks (continents) + 1 free tile</div>
+        </header>
+
+        <div class="section-title">Layout Mockups</div>
+        <div class="layout-list" id="layout-list">
+            <!-- Dynamic list generated by script -->
+        </div>
+
+        <div class="section-title">Active Layout Stats</div>
+        <div class="stats-panel">
+            <div class="stat-row">
+                <span class="stat-label">Camera Angle:</span>
+                <span class="stat-value" id="stat-angle">Optimal</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Labels Visibility:</span>
+                <span class="stat-value" id="stat-visibility">Excellent</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Ergonomic Fit:</span>
+                <span class="stat-value" id="stat-ergonomic" style="color: var(--accent);">Good</span>
+            </div>
+        </div>
+
+        <button class="btn" onclick="openCodeModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            Export Position Coordinates
+        </button>
+    </div>
+
+    <!-- 3D Viewport -->
+    <div id="canvas-container"></div>
+
+    <!-- HUD -->
+    <div class="hud-overlay">
+        <div class="hud-item">Scene Mode: <span class="hud-value" style="color: var(--accent);">3D felt table</span></div>
+        <div class="hud-item">Drag to Rotate | Scroll to Zoom</div>
+    </div>
+</div>
+
+<!-- Code Modal -->
+<div class="modal" id="code-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Coordinate Configuration Code</h3>
+            <button class="close-btn" onclick="closeCodeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 12px; font-size: 14px; color: var(--text-muted);">Copy this layout configuration for your getTrackBases() and getTrackBasesZ() script coordinates.</p>
+            <pre id="code-output">// Code will generate here...</pre>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 10 CONTINENT STACKS LAYOUT DEFINITIONS ---
+    // Coordinates are designed matching TILE.spacingX and TILE.spacingZ
+    const layouts = [
+        {
+            id: 'vertical',
+            name: '1. Vertical Line (Current)',
+            desc: '5 stacks aligned vertically with the free tile on the left.',
+            angle: 'Optimal',
+            visibility: 'Good (Back stacks overlap slightly)',
+            ergonomic: 'Standard',
+            // Stacks: 5 positions
+            stacks: [
+                { x: 2.08, z: -4.75, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: 2.08, z: -2.37, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 2.08, z: 0.0, name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: 2.08, z: 2.37, name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 2.08, z: 4.75, name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            // Hand tile
+            hand: { x: -3.6, z: 0.0, name: 'Slovenia' },
+            // Label offsets relative to stacks
+            labelOffset: { x: -2.2, z: 0.0, rotationY: 0 }
+        },
+        {
+            id: 'horizontal',
+            name: '2. Horizontal Row',
+            desc: 'Stacks lined up side-by-side. Free tile sits centered below.',
+            angle: 'Excellent',
+            visibility: 'Perfect (Zero overlap)',
+            ergonomic: 'Very High',
+            stacks: [
+                { x: -5.2, z: -1.0, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: -2.6, z: -1.0, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 0.0,  z: -1.0, name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: 2.6,  z: -1.0, name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 5.2,  z: -1.0, name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: 0.0, z: 2.8, name: 'Slovenia' },
+            labelOffset: { x: 0.0, z: 1.5, rotationY: 0 }
+        },
+        {
+            id: 'arc',
+            name: '3. Crescent Arc',
+            desc: 'Fanning stacks fanning out towards the player with hand in the center.',
+            angle: 'Cinematic',
+            visibility: 'Excellent',
+            ergonomic: 'High',
+            stacks: [
+                { x: -4.8, z: -2.0, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: -2.5, z: -3.5, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 0.0,  z: -4.0, name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: 2.5,  z: -3.5, name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 4.8,  z: -2.0, name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: 0.0, z: 0.0, name: 'Slovenia' },
+            labelOffset: { x: 0.0, z: 1.5, rotationY: 0 }
+        },
+        {
+            id: 'vshape',
+            name: '4. V-Formation',
+            desc: 'Stacks form a symmetrical chevron. Free tile placed at bottom.',
+            angle: 'High',
+            visibility: 'Good',
+            ergonomic: 'Symmetric',
+            stacks: [
+                { x: -4.0, z: -3.0, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: -2.0, z: -1.0, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 0.0,  z: 1.0,  name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: 2.0,  z: -1.0, name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 4.0,  z: -3.0, name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: 0.0, z: 3.5, name: 'Slovenia' },
+            labelOffset: { x: 0.0, z: 1.4, rotationY: 0 }
+        },
+        {
+            id: 'pentagon',
+            name: '5. Pentagon Enclosure',
+            desc: 'Stacks form a protective ring around the free tile in the center.',
+            angle: 'Balanced',
+            visibility: 'Medium (Front stacks can hide center)',
+            ergonomic: 'Tactile',
+            stacks: [
+                { x: 0.0,  z: -4.0, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: 3.8,  z: -1.2, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 2.4,  z: 3.2,  name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: -2.4, z: 3.2,  name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: -3.8, z: -1.2, name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: 0.0, z: 0.0, name: 'Slovenia' },
+            labelOffset: { x: 0.0, z: 1.4, rotationY: 0 }
+        },
+        {
+            id: 'cascade',
+            name: '6. Double-Row Cascade',
+            desc: '3 stacks in back row, 2 stacks in front. Free tile at side-front.',
+            angle: 'Compact',
+            visibility: 'Good',
+            ergonomic: 'Great',
+            stacks: [
+                { x: -3.0, z: -2.0, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: 0.0,  z: -2.0, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 3.0,  z: -2.0, name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: -1.5, z: 1.5,  name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 1.5,  z: 1.5,  name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: -4.5, z: 1.5, name: 'Slovenia' },
+            labelOffset: { x: 0.0, z: 1.5, rotationY: 0 }
+        },
+        {
+            id: 'dice5',
+            name: '7. Dice Five Pattern',
+            desc: 'Classic four corners + one center arrangement. Hand is offset.',
+            angle: 'Playful',
+            visibility: 'Good',
+            ergonomic: 'Clean',
+            stacks: [
+                { x: -3.5, z: -3.5, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: 3.5,  z: -3.5, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 0.0,  z: 0.0,  name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: -3.5, z: 3.5,  name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 3.5,  z: 3.5,  name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: 0.0, z: 5.5, name: 'Slovenia' },
+            labelOffset: { x: 0.0, z: 1.4, rotationY: 0 }
+        },
+        {
+            id: 'scurve',
+            name: '8. S-Curve Wave',
+            desc: 'Winding wave flow of stacks. Free tile floats in first bend.',
+            angle: 'Dynamic',
+            visibility: 'Good',
+            ergonomic: 'Fluid',
+            stacks: [
+                { x: -4.0, z: -4.0, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: -1.5, z: -2.0, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 1.5,  z: 0.0,  name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: -1.5, z: 2.0,  name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 2.0,  z: 4.0,  name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: -4.0, z: 1.0, name: 'Slovenia' },
+            labelOffset: { x: 1.8, z: 0.0, rotationY: 0 }
+        },
+        {
+            id: 'diagonal',
+            name: '9. Diagonal Steps',
+            desc: 'Linear diagonal stack climb. Free tile sits opposite.',
+            angle: 'Symmetric',
+            visibility: 'Excellent',
+            ergonomic: 'Modern',
+            stacks: [
+                { x: -4.0, z: -4.0, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: -2.0, z: -2.0, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 0.0,  z: 0.0,  name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: 2.0,  z: 2.0,  name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 4.0,  z: 4.0,  name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: -4.0, z: 2.0, name: 'Slovenia' },
+            labelOffset: { x: 1.5, z: 1.5, rotationY: 0.78 }
+        },
+        {
+            id: 'wing',
+            name: '10. Winged Chevron',
+            desc: 'Symmetric wing layout with center stack elevated. Free tile centered below.',
+            angle: 'High',
+            visibility: 'Superb',
+            ergonomic: 'Highly Symmetrical',
+            stacks: [
+                { x: -5.0, z: -2.0, name: 'Africa', color: '#ff4444', pct: '0%' },
+                { x: -2.5, z: -1.0, name: 'Americas', color: '#ff9800', pct: '20%' },
+                { x: 0.0,  z: -2.5, name: 'Asia', color: '#ffeb3b', pct: '30%' },
+                { x: 2.5,  z: -1.0, name: 'Europe', color: '#4caf50', pct: '20%' },
+                { x: 5.0,  z: -2.0, name: 'Oceania', color: '#00ffff', pct: '20%' }
+            ],
+            hand: { x: 0.0, z: 2.0, name: 'Slovenia' },
+            labelOffset: { x: 0.0, z: 1.5, rotationY: 0 }
+        }
+    ];
+
+    // --- THREE.JS IMPLEMENTATION ---
+    let scene, camera, renderer, controls;
+    let tilesGroup = new THREE.Group();
+    let currentLayout = layouts[0];
+    
+    // Constant Tile Dims (Meters matching main game prototype)
+    const TILE = {
+        width: 2.4,
+        height: 0.5,
+        depth: 1.7,
+        spacingX: 2.6,
+        spacingZ: 1.9,
+        layerStepY: 0.5
+    };
+
+    function init() {
+        const container = document.getElementById('canvas-container');
+        
+        // Scene setup
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x283828); // Felt Green background
+
+        // Camera
+        camera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100);
+        camera.position.set(-6, 12, 14); // Tilted perspective look matching screenshot
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // Controls
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2.1;
+        controls.minDistance = 5;
+        controls.maxDistance = 45;
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        dirLight.position.set(10, 20, 15);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.bias = -0.0005;
+        scene.add(dirLight);
+
+        // Add soft secondary side light
+        const sideLight = new THREE.DirectionalLight(0xffffff, 0.25);
+        sideLight.position.set(-15, 8, -10);
+        scene.add(sideLight);
+
+        // Felt Board Plane
+        const boardGeo = new THREE.PlaneGeometry(100, 100);
+        const boardMat = new THREE.MeshStandardMaterial({ 
+            color: 0x324632, 
+            roughness: 0.9,
+            metalness: 0.1 
+        });
+        const floor = new THREE.Mesh(boardGeo, boardMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -0.25;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Grid lines matching felt table boards
+        const gridHelper = new THREE.GridHelper(40, 20, 0x1d2d1d, 0x223622);
+        gridHelper.position.y = -0.24;
+        scene.add(gridHelper);
+
+        scene.add(tilesGroup);
+
+        buildLayoutList();
+        loadLayout(layouts[0]);
+        animate();
+
+        window.addEventListener('resize', onWindowResize);
+    }
+
+    function buildLayoutList() {
+        const listContainer = document.getElementById('layout-list');
+        layouts.forEach((layout, index) => {
+            const item = document.createElement('div');
+            item.className = `layout-item ${index === 0 ? 'active' : ''}`;
+            item.onclick = () => {
+                document.querySelectorAll('.layout-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                loadLayout(layout);
+            };
+
+            item.innerHTML = `
+                <div class="layout-header-row">
+                    <span class="layout-name">${layout.name}</span>
+                </div>
+                <span class="layout-desc">${layout.desc}</span>
+            `;
+            listContainer.appendChild(item);
+        });
+    }
+
+    // Creates canvas texture for flag faces to display visually
+    function makeFlagCanvas(name, colorCode) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 80;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.fillStyle = colorCode;
+        ctx.fillRect(0, 0, 128, 80);
+        
+        // Draw stripes or elements based on color to make it look like a flag
+        ctx.fillStyle = '#ffffff';
+        if (name === 'Africa') {
+            ctx.fillRect(0, 0, 40, 80);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(40, 0, 88, 80);
+        } else if (name === 'Americas') {
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(0, 0, 128, 40);
+        } else if (name === 'Asia') {
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(0, 0, 128, 80);
+            ctx.fillStyle = '#facc15';
+            // Star placeholder
+            ctx.fillRect(20, 20, 20, 20);
+        } else if (name === 'Europe') {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 128, 26);
+            ctx.fillStyle = '#0000ff';
+            ctx.fillRect(0, 26, 128, 28);
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(0, 54, 128, 26);
+        } else if (name === 'Oceania') {
+            ctx.fillStyle = '#000088';
+            ctx.fillRect(0, 0, 128, 80);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(80, 20, 15, 15);
+        } else {
+            // Hand tile (Slovenia)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, 128, 26);
+            ctx.fillStyle = '#0000ff';
+            ctx.fillRect(0, 26, 128, 28);
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(0, 54, 128, 26);
+            ctx.fillStyle = '#ffff00';
+            ctx.fillRect(20, 20, 10, 15); // coat of arms
+        }
+
+        const tex = new THREE.CanvasTexture(canvas);
+        return tex;
+    }
+
+    // Creates canvas texture for text labels printed on floor
+    function makeFloorLabelTexture(pct, name) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 256, 128);
+        
+        // Match user's image styling: Red/coral color for percentage, white text for Name
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        
+        ctx.font = 'bold 36px Outfit';
+        ctx.fillStyle = '#ff4a3b'; // coral red percentage
+        ctx.fillText(pct, 10, 40);
+        
+        ctx.font = '600 28px Outfit';
+        ctx.fillStyle = '#ffffff'; // white name
+        ctx.fillText(name, 10, 85);
+        
+        const tex = new THREE.CanvasTexture(canvas);
+        return tex;
+    }
+
+    function loadLayout(layout) {
+        currentLayout = layout;
+        
+        // Clear old meshes
+        while(tilesGroup.children.length > 0){ 
+            const obj = tilesGroup.children[0];
+            tilesGroup.remove(obj); 
+        }
+
+        const y0 = TILE.height * 0.5;
+
+        // Geometries
+        const tileGeo = new THREE.BoxGeometry(TILE.width, TILE.height, TILE.depth);
+        const labelGeo = new THREE.PlaneGeometry(3.5, 1.75);
+
+        // 1. Build the 5 continent stacks (10 levels high)
+        layout.stacks.forEach((stackPos, stackIdx) => {
+            const stackHeight = 10;
+            const flagTex = makeFlagCanvas(stackPos.name, stackPos.color);
+            
+            // Standard rounded-box edge materials (cream/ivory sides, colorful top flag)
+            const sideMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee, specular: 0x111111, shininess: 30 });
+            const topMat = new THREE.MeshPhongMaterial({ map: flagTex, specular: 0x333333, shininess: 50 });
+            const bottomMat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+            const materials = [sideMat, sideMat, topMat, bottomMat, sideMat, sideMat];
+
+            for (let l = 0; l < stackHeight; l++) {
+                const tileMesh = new THREE.Mesh(tileGeo, materials);
+                tileMesh.position.set(stackPos.x, y0 + l * TILE.layerStepY, stackPos.z);
+                tileMesh.castShadow = true;
+                tileMesh.receiveShadow = true;
+                tilesGroup.add(tileMesh);
+            }
+
+            // 2. Build Floor Labels printed on the floor next to each stack
+            const labelTex = makeFloorLabelTexture(stackPos.pct, stackPos.name);
+            const labelMat = new THREE.MeshBasicMaterial({ 
+                map: labelTex, 
+                transparent: true,
+                depthWrite: false
+            });
+            const labelMesh = new THREE.Mesh(labelGeo, labelMat);
+            
+            // Layout offsets based on selected visual mockup direction
+            let lx = stackPos.x + layout.labelOffset.x;
+            let lz = stackPos.z + layout.labelOffset.z;
+
+            labelMesh.position.set(lx, -0.22, lz);
+            labelMesh.rotation.x = -Math.PI / 2;
+            labelMesh.rotation.z = layout.labelOffset.rotationY || 0;
+            tilesGroup.add(labelMesh);
+        });
+
+        // 3. Build the free tile (hand) on the left / offset
+        const handTex = makeFlagCanvas(layout.hand.name, '#ffffff');
+        const sideMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee, specular: 0x111111, shininess: 30 });
+        const topMat = new THREE.MeshPhongMaterial({ map: handTex, specular: 0x333333, shininess: 50 });
+        const materials = [sideMat, sideMat, topMat, sideMat, sideMat, sideMat];
+        const handMesh = new THREE.Mesh(tileGeo, materials);
+        handMesh.position.set(layout.hand.x, y0, layout.hand.z);
+        handMesh.castShadow = true;
+        handMesh.receiveShadow = true;
+        
+        // Scaling up hand tile slightly for emphasis matching user image
+        handMesh.scale.set(1.08, 1.08, 1.08);
+        tilesGroup.add(handMesh);
+
+        // Highlight/Glow indicator under the hand tile
+        const glowGeo = new THREE.RingGeometry(1.4, 1.6, 32);
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.15 });
+        const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+        glowMesh.rotation.x = -Math.PI / 2;
+        glowMesh.position.set(layout.hand.x, -0.23, layout.hand.z);
+        tilesGroup.add(glowMesh);
+
+        // Update stats UI
+        document.getElementById('stat-angle').innerText = layout.angle;
+        document.getElementById('stat-visibility').innerText = layout.visibility;
+        document.getElementById('stat-ergonomic').innerText = layout.ergonomic;
+
+        // Auto transition camera focus to center of the layout
+        if (controls) {
+            controls.target.set(0, 1.5, 0);
+        }
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        if (controls) controls.update();
+        renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+        const container = document.getElementById('canvas-container');
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function openCodeModal() {
+        const modal = document.getElementById('code-modal');
+        const pre = document.getElementById('code-output');
+        
+        let outputCode = `// Coordinates for getTrackBases() and getTrackBasesZ() in main.ts:\n\n`;
+        outputCode += `// Active Layout: ${currentLayout.name}\n`;
+        outputCode += `function getTrackBases() {\n`;
+        outputCode += `    return [${currentLayout.stacks.map(s => s.x.toFixed(2)).join(', ')}];\n`;
+        outputCode += `}\n\n`;
+        
+        outputCode += `function getTrackBasesZ() {\n`;
+        outputCode += `    return [${currentLayout.stacks.map(s => s.z.toFixed(2)).join(', ')}];\n`;
+        outputCode += `}\n\n`;
+        
+        outputCode += `// Coordinates for Hand (Free Tile):\n`;
+        outputCode += `const handPosition = new THREE.Vector3(${currentLayout.hand.x.toFixed(2)}, y0, ${currentLayout.hand.z.toFixed(2)});\n`;
+
+        pre.innerText = outputCode;
+        modal.style.display = 'flex';
+    }
+
+    function closeCodeModal() {
+        document.getElementById('code-modal').style.display = 'none';
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>
