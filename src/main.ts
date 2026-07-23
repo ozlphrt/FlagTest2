@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.3.4';
+const CURRENT_VERSION = 'v1.3.5';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1555,10 +1555,10 @@ function createSettingsUI() {
 	});
 
 	let hideTimer: any;
-	const closeMenu = () => {
+	let closeMenu = () => {
 		Object.assign(menu.style, { opacity: '0', transform: 'translateY(10px) scale(0.95)', pointerEvents: 'none' });
 	};
-	const openMenu = () => {
+	let openMenu = () => {
 		Object.assign(menu.style, { opacity: '1', transform: 'translateY(0) scale(1)', pointerEvents: 'auto' });
 		resetTimer();
 	};
@@ -1586,29 +1586,67 @@ function createSettingsUI() {
 		updateAllTileMaterials();
 	}, showMisplacedHints);
 
-	// Reset to Level 1 Button
-	const resetBtn = document.createElement('button');
-	resetBtn.innerText = 'Reset to Level 1';
-	Object.assign(resetBtn.style, {
-		background: '#dc2626', color: '#ffffff', border: 'none',
-		padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
-		fontWeight: '700', cursor: 'pointer', marginTop: '10px',
-		transition: 'background 0.2s', width: '100%'
+	// Go to Level X dropdown
+	const levelSelectWrap = document.createElement('div');
+	Object.assign(levelSelectWrap.style, {
+		display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '10px', width: '100%'
 	});
-	resetBtn.onmouseenter = () => resetBtn.style.background = '#b91c1c';
-	resetBtn.onmouseleave = () => resetBtn.style.background = '#dc2626';
-	resetBtn.onclick = () => {
-		if (confirm('Are you sure you want to reset all progress back to Level 1?')) {
-			saveProgress(1);
-			currentLevelIndex = 1;
-			currentLevelConfig = LEVELS[0];
+	
+	const levelSelectLabel = document.createElement('span');
+	levelSelectLabel.innerText = 'Go to Level:';
+	levelSelectLabel.style.fontSize = '12px';
+	levelSelectLabel.style.fontWeight = '600';
+	levelSelectLabel.style.color = '#cccccc';
+	levelSelectWrap.appendChild(levelSelectLabel);
+
+	const selectEl = document.createElement('select');
+	Object.assign(selectEl.style, {
+		background: 'rgba(255,255,255,0.1)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.2)',
+		padding: '6px 10px', borderRadius: '8px', fontSize: '13px', fontWeight: '700',
+		cursor: 'pointer', outline: 'none', width: '100%', boxSizing: 'border-box'
+	});
+	
+	LEVELS.forEach(lvl => {
+		const opt = document.createElement('option');
+		opt.value = lvl.id.toString();
+		opt.innerText = `${lvl.id}: ${lvl.title}`;
+		opt.style.background = '#14181c';
+		opt.style.color = '#ffffff';
+		if (lvl.id === currentLevelConfig.id) {
+			opt.selected = true;
+		}
+		selectEl.appendChild(opt);
+	});
+
+	selectEl.onchange = (e) => {
+		const targetId = parseInt((e.target as HTMLSelectElement).value, 10);
+		const targetLvl = LEVELS.find(l => l.id === targetId);
+		if (targetLvl && confirm(`Jump to Level ${targetId}: ${targetLvl.title}?`)) {
+			saveProgress(targetId);
+			currentLevelIndex = targetId;
+			currentLevelConfig = targetLvl;
 			repopulatePilesRandomUnique();
 			updateLevelBadge();
 			updateTrackLabels();
 			closeMenu();
+		} else {
+			selectEl.value = currentLevelConfig.id.toString();
 		}
 	};
-	menu.appendChild(resetBtn);
+
+	levelSelectWrap.appendChild(selectEl);
+	menu.appendChild(levelSelectWrap);
+
+	// Dynamically keep selectEl synced when level completes/changes
+	const syncSelectValue = () => {
+		selectEl.value = currentLevelConfig.id.toString();
+	};
+	// Let's hook syncSelectValue into openMenu
+	const originalOpenMenu = openMenu;
+	openMenu = () => {
+		syncSelectValue();
+		originalOpenMenu();
+	};
 
 	// Version Info
 	const ver = document.createElement('div');
