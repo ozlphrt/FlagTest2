@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.3.8';
+const CURRENT_VERSION = 'v1.3.9';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -663,19 +663,21 @@ function createTileAt(p: Vec3, iso: string): TileRecord {
 			ctx.fillStyle = '#ffffff';
 			
 			// Dynamic scaling to fill space with thick, legible font
-			let fontSize = 56;
+			let fontSize = 110; // Default for short names (e.g. Oslo, Paris, Tokyo)
 			if (cap.length > 20) {
-				fontSize = 32;
+				fontSize = 52;
 			} else if (cap.length > 14) {
-				fontSize = 42;
+				fontSize = 72;
+			} else if (cap.length > 8) {
+				fontSize = 90;
 			}
 			ctx.font = `900 ${fontSize}px "Segoe UI", Roboto, sans-serif`;
 
 			const words = cap.split(' ');
-			if (words.length > 1 && cap.length > 10) {
+			if (words.length > 1 && cap.length > 8) {
 				const mid = Math.ceil(words.length / 2);
-				ctx.fillText(words.slice(0, mid).join(' '), 256, 90);
-				ctx.fillText(words.slice(mid).join(' '), 256, 166);
+				ctx.fillText(words.slice(0, mid).join(' '), 256, 85);
+				ctx.fillText(words.slice(mid).join(' '), 256, 175);
 			} else {
 				ctx.fillText(cap, 256, 128);
 			}
