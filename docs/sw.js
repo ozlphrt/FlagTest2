@@ -35,7 +35,9 @@ self.addEventListener('fetch', (event) => {
 
   // version.json MUST NEVER BE CACHED
   if (url.pathname.endsWith('version.json')) {
-    event.respondWith(fetch(event.request));
+    event.respondWith(
+      fetch(event.request).catch(() => new Response('Offline', { status: 503 }))
+    );
     return;
   }
 
@@ -54,7 +56,9 @@ self.addEventListener('fetch', (event) => {
   } else {
     event.respondWith(
       caches.match(event.request).then((response) => {
-        return response || fetch(event.request);
+        return response || fetch(event.request).catch(() => {
+          return new Response('Not found', { status: 404 });
+        });
       })
     );
   }

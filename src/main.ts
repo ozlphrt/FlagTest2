@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.4.2';
+const CURRENT_VERSION = 'v1.4.3';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
