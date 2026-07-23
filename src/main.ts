@@ -11,6 +11,7 @@ import { crabMasks } from './layouts/preset_crab';
 import { UN193_ISO2 } from './data/un193';
 import { continentOf, type Continent } from './data/continents';
 import { LEVELS, type LevelConfig } from './data/levels';
+import { CAPITALS_MAP } from './data/capitals';
 
 // -----------------------------------------------------------------------------
 // Constants & Configuration
@@ -44,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.3.3';
+const CURRENT_VERSION = 'v1.3.4';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -759,12 +760,19 @@ async function resolveCountryName(iso: string): Promise<string> {
 }
 
 async function resolveCapitalName(iso: string): Promise<string> {
-	const code = (iso || '').toUpperCase();
-	const key = code + '_CAP';
+	const code = (iso || '').toLowerCase();
+	const key = code.toUpperCase() + '_CAP';
 	if (countryNameCache.has(key)) return countryNameCache.get(key)!;
 
-	// Fetch if not present (reuse resolveCountryName flow logic essentially)
-	return fetch(`https://restcountries.com/v3.1/alpha/${code}`)
+	// Check local offline dictionary first
+	if (CAPITALS_MAP[code]) {
+		const cap = CAPITALS_MAP[code];
+		countryNameCache.set(key, cap);
+		return cap;
+	}
+
+	// Fallback to fetch if not present in offline dictionary
+	return fetch(`https://restcountries.com/v3.1/alpha/${code.toUpperCase()}`)
 		.then(r => r.ok ? r.json() : null)
 		.then(data => {
 			const cap = (Array.isArray(data) && data[0]?.capital?.[0]) ? data[0].capital[0] : 'Unknown';

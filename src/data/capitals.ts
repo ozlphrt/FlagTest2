@@ -1,0 +1,22 @@
+export const CAPITALS_MAP: Record<string, string> = {
+	'af': 'Kabul', 'al': 'Tirana', 'dz': 'Algiers', 'ad': 'Andorra la Vella', 'ao': 'Luanda', 'ag': "St. John's", 'ar': 'Buenos Aires', 'am': 'Yerevan', 'au': 'Canberra', 'at': 'Vienna',
+	'az': 'Baku', 'bs': 'Nassau', 'bh': 'Manama', 'bd': 'Dhaka', 'bb': 'Bridgetown', 'by': 'Minsk', 'be': 'Brussels', 'bz': 'Belmopan', 'bj': 'Porto-Novo', 'bt': 'Thimphu',
+	'bo': 'Sucre', 'ba': 'Sarajevo', 'bw': 'Gaborone', 'br': 'Brasília', 'bn': 'Bandar Seri Begawan', 'bg': 'Sofia', 'bf': 'Ouagadougou', 'bi': 'Gitega', 'cv': 'Praia', 'kh': 'Phnom Penh',
+	'cm': 'Yaoundé', 'ca': 'Ottawa', 'cf': 'Bangui', 'td': "N'Djamena", 'cl': 'Santiago', 'cn': 'Beijing', 'co': 'Bogotá', 'km': 'Moroni', 'cg': 'Brazzaville', 'cd': 'Kinshasa',
+	'cr': 'San José', 'ci': 'Yamoussoukro', 'hr': 'Zagreb', 'cu': 'Havana', 'cy': 'Nicosia', 'cz': 'Prague', 'dk': 'Copenhagen', 'dj': 'Djibouti', 'dm': 'Roseau', 'do': 'Santo Domingo',
+	'ec': 'Quito', 'eg': 'Cairo', 'sv': 'San Salvador', 'gq': 'Malabo', 'er': 'Asmara', 'ee': 'Tallinn', 'sz': 'Mbabane', 'et': 'Addis Ababa', 'fj': 'Suva', 'fi': 'Helsinki',
+	'fr': 'Paris', 'ga': 'Libreville', 'gm': 'Banjul', 'ge': 'Tbilisi', 'de': 'Berlin', 'gh': 'Accra', 'gr': 'Athens', 'gd': "St. George's", 'gt': 'Guatemala City', 'gn': 'Conakry',
+	'gw': 'Bissau', 'gy': 'Georgetown', 'ht': 'Port-au-Prince', 'hn': 'Tegucigalpa', 'hu': 'Budapest', 'is': 'Reykjavík', 'in': 'New Delhi', 'id': 'Jakarta', 'ir': 'Tehran', 'iq': 'Baghdad',
+	'ie': 'Dublin', 'il': 'Jerusalem', 'it': 'Rome', 'jm': 'Kingston', 'jp': 'Tokyo', 'jo': 'Amman', 'kz': 'Astana', 'ke': 'Nairobi', 'ki': 'Tarawa', 'kp': 'Pyongyang',
+	'kr': 'Seoul', 'kw': 'Kuwait City', 'kg': 'Bishkek', 'la': 'Vientiane', 'lv': 'Riga', 'lb': 'Beirut', 'ls': 'Maseru', 'lr': 'Monrovia', 'ly': 'Tripoli', 'li': 'Vaduz',
+	'lt': 'Vilnius', 'lu': 'Luxembourg', 'mg': 'Antananarivo', 'mw': 'Lilongwe', 'my': 'Kuala Lumpur', 'mv': 'Malé', 'ml': 'Bamako', 'mt': 'Valletta', 'mh': 'Majuro', 'mr': 'Nouakchott',
+	'mu': 'Port Louis', 'mx': 'Mexico City', 'fm': 'Palikir', 'md': 'Chișinău', 'mc': 'Monaco', 'mn': 'Ulaanbaatar', 'me': 'Podgorica', 'ma': 'Rabat', 'mz': 'Maputo', 'mm': 'Naypyidaw',
+	'na': 'Windhoek', 'nr': 'Yaren', 'np': 'Kathmandu', 'nl': 'Amsterdam', 'nz': 'Wellington', 'ni': 'Managua', 'ne': 'Niamey', 'ng': 'Abuja', 'mk': 'Skopje', 'no': 'Oslo',
+	'om': 'Muscat', 'pk': 'Islamabad', 'pw': 'Ngerulmud', 'pa': 'Panama City', 'pg': 'Port Moresby', 'py': 'Asunción', 'pe': 'Lima', 'ph': 'Manila', 'pl': 'Warsaw', 'pt': 'Lisbon',
+	'qa': 'Doha', 'ro': 'Bucharest', 'ru': 'Moscow', 'rw': 'Kigali', 'kn': 'Basseterre', 'lc': 'Castries', 'vc': 'Kingstown', 'ws': 'Apia', 'sm': 'San Marino', 'st': 'São Tomé',
+	'sa': 'Riyadh', 'sn': 'Dakar', 'rs': 'Belgrade', 'sc': 'Victoria', 'sl': 'Freetown', 'sg': 'Singapore', 'sk': 'Bratislava', 'si': 'Ljubljana', 'sb': 'Honiara', 'so': 'Mogadishu',
+	'za': 'Pretoria', 'ss': 'Juba', 'es': 'Madrid', 'lk': 'Sri Jayawardenepura Kotte', 'sd': 'Khartoum', 'sr': 'Paramaribo', 'se': 'Stockholm', 'ch': 'Bern', 'sy': 'Damascus', 'tj': 'Dushanbe',
+	'th': 'Bangkok', 'tl': 'Dili', 'tg': 'Lomé', 'to': "Nuku'alofa", 'tt': 'Port of Spain', 'tn': 'Tunis', 'tr': 'Ankara', 'tm': 'Ashgabat', 'tv': 'Funafuti', 'ug': 'Kampala',
+	'ua': 'Kyiv', 'ae': 'Abu Dhabi', 'gb': 'London', 'tz': 'Dodoma', 'us': 'Washington, D.C.', 'uy': 'Montevideo', 'uz': 'Tashkent', 'vu': 'Port Vila', 've': 'Caracas', 'vn': 'Hanoi',
+	'ye': 'Sanaa', 'zm': 'Lusaka', 'zw': 'Harare'
+};

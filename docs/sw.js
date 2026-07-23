@@ -1,16 +1,21 @@
-const CACHE_NAME = 'flagtest-v1.2.3';
+const CACHE_NAME = 'flagtest-v1.3.2';
 const ASSETS = [
   './',
   './index.html',
-  './manifest.json',
-  './version.json'
+  './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  self.skipWaiting(); // Force activation
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
@@ -24,12 +29,17 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-First strategy for core files, Cache-First for everything else (images/flags)
+// Network-First for core files, Cache-First for everything else
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Check if this is index.html or version.json - use endsWith to handle subfolders
-  const isIndex = url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('version.json');
+  // version.json MUST NEVER BE CACHED
+  if (url.pathname.endsWith('version.json')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  const isIndex = url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
 
   if (isIndex) {
     event.respondWith(
