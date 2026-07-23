@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.3.9';
+const CURRENT_VERSION = 'v1.4.0';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1336,8 +1336,14 @@ function startTimer() {
 
 function updateTimerDisplay() {
 	if (!gameActive) return;
+	if (currentLevelConfig.timer === 'None') {
+		timerDiv.innerText = "--:--";
+		timerDiv.style.color = 'white';
+		return;
+	}
 	if (!blitzMode) {
-		const elapsed = Math.floor((Date.now() - startTime) / 1000);
+		let elapsed = Math.floor((Date.now() - startTime) / 1000);
+		if (elapsed < 0) elapsed = 0;
 		const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
 		const s = (elapsed % 60).toString().padStart(2, '0');
 		timerDiv.innerText = `${m}:${s}`;
@@ -1349,7 +1355,8 @@ function updateTimerDisplay() {
 			handleGameOver("Time's Up!");
 			return;
 		}
-		const remS = Math.floor(remMs / 1000);
+		let remS = Math.floor(remMs / 1000);
+		if (remS < 0) remS = 0;
 		const m = Math.floor(remS / 60).toString().padStart(2, '0');
 		const s = (remS % 60).toString().padStart(2, '0');
 		timerDiv.innerText = `${m}:${s}`;
@@ -1366,7 +1373,9 @@ function addTimeBonus(seconds: number, countryName?: string) {
 		// Reduce elapsed time by shifting startTime forward
 		startTime += seconds * 1000;
 	}
-	showFloatingText(`+${seconds}s`, '#00ff00', countryName);
+	if (currentLevelConfig.timer !== 'None') {
+		showFloatingText(`+${seconds}s`, '#00ff00', countryName);
+	}
 }
 
 function applyTimePenalty(seconds: number) {
@@ -1376,9 +1385,11 @@ function applyTimePenalty(seconds: number) {
 	} else if (currentLevelConfig.timer === 'CountUp') {
 		startTime -= seconds * 1000;
 	}
-	showFloatingText(`-${seconds}s`, '#ff4444');
-	timerDiv.style.color = '#ff4444';
-	setTimeout(() => { if (gameActive) timerDiv.style.color = 'white'; }, 500);
+	if (currentLevelConfig.timer !== 'None') {
+		showFloatingText(`-${seconds}s`, '#ff4444');
+		timerDiv.style.color = '#ff4444';
+		setTimeout(() => { if (gameActive) timerDiv.style.color = 'white'; }, 500);
+	}
 }
 
 function applyTimePenaltyWithTeasing(seconds: number, text: string, subtext?: string, isSarcastic = false) {
@@ -1388,9 +1399,11 @@ function applyTimePenaltyWithTeasing(seconds: number, text: string, subtext?: st
 	} else if (currentLevelConfig.timer === 'CountUp') {
 		startTime -= seconds * 1000;
 	}
-	showFloatingText(text, '#ff4444', subtext, isSarcastic);
-	timerDiv.style.color = '#ff4444';
-	setTimeout(() => { if (gameActive) timerDiv.style.color = 'white'; }, 500);
+	if (currentLevelConfig.timer !== 'None') {
+		showFloatingText(text, '#ff4444', subtext, isSarcastic);
+		timerDiv.style.color = '#ff4444';
+		setTimeout(() => { if (gameActive) timerDiv.style.color = 'white'; }, 500);
+	}
 }
 
 function shakeTileMesh(mesh: THREE.Mesh) {
