@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.3.6';
+const CURRENT_VERSION = 'v1.3.7';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -408,12 +408,12 @@ function ensureStatusPanel() {
 	panel = document.createElement('div');
 	panel.id = 'status-panel';
 	Object.assign(panel.style, {
-		position: 'fixed', left: '20px', top: '20px', padding: '12px 20px',
+		position: 'fixed', left: '20px', top: '20px', padding: '16px 26px',
 		background: 'rgba(0,0,0,0.6)', color: '#ffffff', borderRadius: '20px',
 		backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.15)',
 		boxShadow: '0 8px 32px rgba(0,0,0,0.4)', textAlign: 'left',
-		display: 'flex', flexDirection: 'row', gap: '16px', alignItems: 'center',
-		zIndex: '2000', minWidth: '300px'
+		display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'center',
+		zIndex: '2000', minWidth: '320px'
 	});
 
 	// Level Info Section
@@ -428,7 +428,7 @@ function ensureStatusPanel() {
 	// Divider
 	const div = document.createElement('div');
 	Object.assign(div.style, {
-		width: '1px', height: '40px', background: 'rgba(255,255,255,0.2)', margin: '0'
+		width: '1px', height: '44px', background: 'rgba(255,255,255,0.2)', margin: '0'
 	});
 	panel.appendChild(div);
 
@@ -436,10 +436,10 @@ function ensureStatusPanel() {
 	timerDiv = document.createElement('div');
 	timerDiv.id = 'status-timer';
 	Object.assign(timerDiv.style, {
-		fontSize: '32px', fontFamily: '"SF Mono", "Consolas", "Monaco", monospace',
-		fontWeight: '700', lineHeight: '1', letterSpacing: '1px',
+		fontSize: '38px', fontFamily: '"SF Mono", "Consolas", "Monaco", monospace',
+		fontWeight: '900', lineHeight: '1', letterSpacing: '1px',
 		textShadow: '0 2px 8px rgba(0,0,0,0.3)',
-		minWidth: '100px', textAlign: 'center'
+		minWidth: '110px', textAlign: 'center'
 	});
 	timerDiv.innerText = '00:00';
 	panel.appendChild(timerDiv);
@@ -450,7 +450,7 @@ function ensureStatusPanel() {
 
 function updateLevelBadge() {
 	ensureStatusPanel();
-	levelInfoDiv.innerHTML = `<div style="font-size:16px;font-weight:700;letter-spacing:0.3px;margin-bottom:2px">${currentLevelConfig.mode === 'Standard' || currentLevelConfig.mode === 'Capital' ? currentLevelConfig.title : currentLevelConfig.title}</div><div style="font-size:12px;opacity:0.75;font-weight:500">${currentLevelConfig.subtitle}</div>`;
+	levelInfoDiv.innerHTML = `<div style="font-size:20px;font-weight:900;letter-spacing:0.3px;margin-bottom:4px">${currentLevelConfig.mode === 'Standard' || currentLevelConfig.mode === 'Capital' ? currentLevelConfig.title : currentLevelConfig.title}</div><div style="font-size:14px;opacity:0.85;font-weight:700">${currentLevelConfig.subtitle}</div>`;
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -485,16 +485,16 @@ function makeTextLabel(text: string, sub?: string, subColor: string = '#ffffff')
 
 	if (sub) {
 		// Country Name (sub) - Main Feature
-		let fontSub = 90;
+		let fontSub = 100;
 		const maxWSub = canvas.width - 20;
 		let lines: string[] = [sub];
 
 		while (fontSub > 30) {
-			ctx.font = `bold ${fontSub}px ${fontStack}`;
+			ctx.font = `900 ${fontSub}px ${fontStack}`;
 			lines = wrapText(ctx, sub, maxWSub);
 
-			const totalH = lines.length * (fontSub * 1.1);
-			if (totalH > canvas.height * 0.6) {
+			const totalH = lines.length * (fontSub * 1.15);
+			if (totalH > canvas.height * 0.65) {
 				fontSub -= 5;
 				continue;
 			}
@@ -507,28 +507,28 @@ function makeTextLabel(text: string, sub?: string, subColor: string = '#ffffff')
 		}
 
 		ctx.fillStyle = subColor;
-		const lineHeight = fontSub * 1.1;
+		const lineHeight = fontSub * 1.15;
 		const blockHeight = lines.length * lineHeight;
-		const startY = (canvas.height * 0.45) - (blockHeight / 2) + (fontSub * 0.3);
+		const startY = (canvas.height * 0.45) - (blockHeight / 2) + (fontSub * 0.35);
 
 		lines.forEach((line, i) => {
 			ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);
 		});
 
 		// Continent - Bottom
-		let fontMain = 60; ctx.font = `bold ${fontMain}px ${fontStack}`;
+		let fontMain = 70; ctx.font = `900 ${fontMain}px ${fontStack}`;
 		const maxWMain = canvas.width - 20;
 		while (ctx.measureText(text).width > maxWMain && fontMain > 20) {
-			fontMain -= 5; ctx.font = `bold ${fontMain}px ${fontStack}`;
+			fontMain -= 5; ctx.font = `900 ${fontMain}px ${fontStack}`;
 		}
-		ctx.fillStyle = '#cccccc';
+		ctx.fillStyle = '#eeeeee';
 		ctx.fillText(text, canvas.width / 2, canvas.height * 0.75);
 
 	} else {
 		// Single line label (simple)
-		let font = 80; ctx.font = `bold ${font}px ${fontStack}`;
+		let font = 90; ctx.font = `900 ${font}px ${fontStack}`;
 		const maxW = canvas.width - 20;
-		while (ctx.measureText(text).width > maxW && font > 24) { font -= 5; ctx.font = `bold ${font}px ${fontStack}`; }
+		while (ctx.measureText(text).width > maxW && font > 24) { font -= 5; ctx.font = `900 ${font}px ${fontStack}`; }
 		ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 	}
 
@@ -539,8 +539,9 @@ function makeTextLabel(text: string, sub?: string, subColor: string = '#ffffff')
 
 	const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
 	const aspect = canvas.width / canvas.height;
-	// Significantly reduced plane width to prevent viewport bleeding (was 3.0)
-	const w = TILE.width * 1.7;
+	
+	// Increased scale factor back to 2.8 for maximum clarity and bold size
+	const w = TILE.width * 2.8;
 	const h = w / aspect;
 	const geo = new THREE.PlaneGeometry(w, h);
 	const mesh = new THREE.Mesh(geo, mat);
