@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.4.0';
+const CURRENT_VERSION = 'v1.4.1';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1082,6 +1082,65 @@ function getAudioContext(): AudioContext {
 	return audioCtx;
 }
 
+function playSoundTileTap() {
+	try {
+		const ctx = getAudioContext();
+		if (ctx.state === 'suspended') {
+			ctx.resume().then(() => playSoundTileTapNode(ctx));
+		} else {
+			playSoundTileTapNode(ctx);
+		}
+	} catch (e) {
+		console.warn("AudioContext tap sound failed:", e);
+	}
+}
+
+function playSoundTileTapNode(ctx: AudioContext) {
+	const now = ctx.currentTime;
+	const osc = ctx.createOscillator();
+	const gain = ctx.createGain();
+	
+	// Single plastic click: super fast decay, high pitch resonance mix
+	osc.type = 'sine';
+	osc.frequency.setValueAtTime(1100, now);
+	osc.frequency.exponentialRampToValueAtTime(400, now + 0.015);
+	
+	gain.gain.setValueAtTime(0, now);
+	gain.gain.linearRampToValueAtTime(0.08, now + 0.001);
+	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+	
+	// Noise transient
+	const bufferSize = ctx.sampleRate * 0.012;
+	const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+	const data = buffer.getChannelData(0);
+	for (let i = 0; i < bufferSize; i++) {
+		data[i] = Math.random() * 2 - 1;
+	}
+	const noise = ctx.createBufferSource();
+	noise.buffer = buffer;
+	
+	const filter = ctx.createBiquadFilter();
+	filter.type = 'bandpass';
+	filter.frequency.setValueAtTime(3200, now);
+	filter.Q.setValueAtTime(3.0, now);
+	
+	const noiseGain = ctx.createGain();
+	noiseGain.gain.setValueAtTime(0.03, now);
+	noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.008);
+	
+	osc.connect(gain);
+	noise.connect(filter);
+	filter.connect(noiseGain);
+	
+	gain.connect(ctx.destination);
+	noiseGain.connect(ctx.destination);
+	
+	osc.start(now);
+	osc.stop(now + 0.02);
+	noise.start(now);
+	noise.stop(now + 0.02);
+}
+
 function playSoundCorrect() {
 	try {
 		const ctx = getAudioContext();
@@ -1099,21 +1158,21 @@ function playSoundCorrectNode(ctx: AudioContext) {
 	const now = ctx.currentTime;
 	
 	// Double-clack (two plastic tiles tapping in quick succession)
-	[0, 0.05].forEach((delay) => {
+	[0, 0.045].forEach((delay) => {
 		const osc = ctx.createOscillator();
 		const gain = ctx.createGain();
 		
 		// 1. Tonal element (high pitched transient snap)
 		osc.type = 'sine';
-		osc.frequency.setValueAtTime(950, now + delay);
-		osc.frequency.exponentialRampToValueAtTime(350, now + delay + 0.025);
+		osc.frequency.setValueAtTime(1050, now + delay);
+		osc.frequency.exponentialRampToValueAtTime(450, now + delay + 0.02);
 		
 		gain.gain.setValueAtTime(0, now + delay);
-		gain.gain.linearRampToValueAtTime(0.06, now + delay + 0.002);
-		gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.025);
+		gain.gain.linearRampToValueAtTime(0.12, now + delay + 0.001); // Louder
+		gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.02);
 		
 		// 2. High-pass noise element (impact click texture)
-		const bufferSize = ctx.sampleRate * 0.02; // 20ms burst
+		const bufferSize = ctx.sampleRate * 0.015;
 		const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
 		const data = buffer.getChannelData(0);
 		for (let i = 0; i < bufferSize; i++) {
@@ -1124,12 +1183,12 @@ function playSoundCorrectNode(ctx: AudioContext) {
 		
 		const filter = ctx.createBiquadFilter();
 		filter.type = 'bandpass';
-		filter.frequency.setValueAtTime(2200, now + delay);
-		filter.Q.setValueAtTime(2.0, now + delay);
+		filter.frequency.setValueAtTime(2800, now + delay);
+		filter.Q.setValueAtTime(2.5, now + delay);
 		
 		const noiseGain = ctx.createGain();
-		noiseGain.gain.setValueAtTime(0.02, now + delay);
-		noiseGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.015);
+		noiseGain.gain.setValueAtTime(0.04, now + delay); // Louder
+		noiseGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.012);
 		
 		osc.connect(gain);
 		noise.connect(filter);
@@ -1139,9 +1198,9 @@ function playSoundCorrectNode(ctx: AudioContext) {
 		noiseGain.connect(ctx.destination);
 		
 		osc.start(now + delay);
-		osc.stop(now + delay + 0.03);
+		osc.stop(now + delay + 0.025);
 		noise.start(now + delay);
-		noise.stop(now + delay + 0.03);
+		noise.stop(now + delay + 0.025);
 	});
 }
 
@@ -1165,14 +1224,14 @@ function playSoundWrongNode(ctx: AudioContext) {
 	
 	// Dull, flat drop thud (lower pitch, hollow plastic impact)
 	osc.type = 'triangle';
-	osc.frequency.setValueAtTime(300, now);
-	osc.frequency.linearRampToValueAtTime(120, now + 0.07);
+	osc.frequency.setValueAtTime(260, now);
+	osc.frequency.linearRampToValueAtTime(100, now + 0.06);
 	
 	gain.gain.setValueAtTime(0, now);
-	gain.gain.linearRampToValueAtTime(0.12, now + 0.003);
-	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+	gain.gain.linearRampToValueAtTime(0.18, now + 0.002);
+	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
 	
-	const bufferSize = ctx.sampleRate * 0.05; // 50ms burst
+	const bufferSize = ctx.sampleRate * 0.04;
 	const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
 	const data = buffer.getChannelData(0);
 	for (let i = 0; i < bufferSize; i++) {
@@ -1183,11 +1242,11 @@ function playSoundWrongNode(ctx: AudioContext) {
 	
 	const filter = ctx.createBiquadFilter();
 	filter.type = 'lowpass';
-	filter.frequency.setValueAtTime(500, now);
+	filter.frequency.setValueAtTime(450, now);
 	
 	const noiseGain = ctx.createGain();
-	noiseGain.gain.setValueAtTime(0.03, now);
-	noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+	noiseGain.gain.setValueAtTime(0.05, now);
+	noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
 	
 	osc.connect(gain);
 	noise.connect(filter);
@@ -1197,9 +1256,9 @@ function playSoundWrongNode(ctx: AudioContext) {
 	noiseGain.connect(ctx.destination);
 	
 	osc.start(now);
-	osc.stop(now + 0.07);
+	osc.stop(now + 0.06);
 	noise.start(now);
-	noise.stop(now + 0.07);
+	noise.stop(now + 0.06);
 }
 
 function playSoundLevelComplete() {
@@ -1968,6 +2027,7 @@ window.addEventListener('click', unlockAudio);
 window.addEventListener('touchend', unlockAudio);
 
 function handlePileInteraction(clicked: THREE.Mesh) {
+	playSoundTileTap();
 	const bases = getTrackBases(), basesZ = getTrackBasesZ();
 
 	// 1. Identify which pillar column (Index) was clicked
