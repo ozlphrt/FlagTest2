@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.4.3';
+const CURRENT_VERSION = 'v1.4.4';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -2317,9 +2317,23 @@ async function forceHardReload() {
 
 function registerServiceWorker() {
 	if ('serviceWorker' in navigator) {
-		window.addEventListener('load', () => {
-			navigator.serviceWorker.register('./sw.js').catch(console.error);
-		});
+		const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+		if (isLocal) {
+			navigator.serviceWorker.getRegistrations().then((registrations) => {
+				for (const registration of registrations) {
+					registration.unregister().then((success) => {
+						if (success) {
+							console.log("Unregistered active local Service Worker to bypass cache conflicts.");
+							window.location.reload();
+						}
+					});
+				}
+			});
+		} else {
+			window.addEventListener('load', () => {
+				navigator.serviceWorker.register('./sw.js').catch(console.error);
+			});
+		}
 	}
 }
 
