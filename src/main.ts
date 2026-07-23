@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.3.5';
+const CURRENT_VERSION = 'v1.3.6';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1082,21 +1082,52 @@ function playSoundCorrect() {
 
 function playSoundCorrectNode(ctx: AudioContext) {
 	const now = ctx.currentTime;
-	const osc = ctx.createOscillator();
-	const gain = ctx.createGain();
 	
-	// Soft C6-E6 high chime, very low volume (0.02) and extremely short (150ms)
-	osc.type = 'sine';
-	osc.frequency.setValueAtTime(1046.50, now); // C6
-	osc.frequency.setValueAtTime(1318.51, now + 0.05); // E6
-	
-	gain.gain.setValueAtTime(0.025, now);
-	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-	
-	osc.connect(gain);
-	gain.connect(ctx.destination);
-	osc.start(now);
-	osc.stop(now + 0.15);
+	// Double-clack (two plastic tiles tapping in quick succession)
+	[0, 0.05].forEach((delay) => {
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+		
+		// 1. Tonal element (high pitched transient snap)
+		osc.type = 'sine';
+		osc.frequency.setValueAtTime(950, now + delay);
+		osc.frequency.exponentialRampToValueAtTime(350, now + delay + 0.025);
+		
+		gain.gain.setValueAtTime(0, now + delay);
+		gain.gain.linearRampToValueAtTime(0.06, now + delay + 0.002);
+		gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.025);
+		
+		// 2. High-pass noise element (impact click texture)
+		const bufferSize = ctx.sampleRate * 0.02; // 20ms burst
+		const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+		const data = buffer.getChannelData(0);
+		for (let i = 0; i < bufferSize; i++) {
+			data[i] = Math.random() * 2 - 1;
+		}
+		const noise = ctx.createBufferSource();
+		noise.buffer = buffer;
+		
+		const filter = ctx.createBiquadFilter();
+		filter.type = 'bandpass';
+		filter.frequency.setValueAtTime(2200, now + delay);
+		filter.Q.setValueAtTime(2.0, now + delay);
+		
+		const noiseGain = ctx.createGain();
+		noiseGain.gain.setValueAtTime(0.02, now + delay);
+		noiseGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.015);
+		
+		osc.connect(gain);
+		noise.connect(filter);
+		filter.connect(noiseGain);
+		
+		gain.connect(ctx.destination);
+		noiseGain.connect(ctx.destination);
+		
+		osc.start(now + delay);
+		osc.stop(now + delay + 0.03);
+		noise.start(now + delay);
+		noise.stop(now + delay + 0.03);
+	});
 }
 
 function playSoundWrong() {
@@ -1117,23 +1148,43 @@ function playSoundWrongNode(ctx: AudioContext) {
 	const osc = ctx.createOscillator();
 	const gain = ctx.createGain();
 	
-	// Softer low triangle thud (frequency sliding down)
+	// Dull, flat drop thud (lower pitch, hollow plastic impact)
 	osc.type = 'triangle';
-	osc.frequency.setValueAtTime(130, now);
-	osc.frequency.linearRampToValueAtTime(80, now + 0.18);
+	osc.frequency.setValueAtTime(300, now);
+	osc.frequency.linearRampToValueAtTime(120, now + 0.07);
 	
-	gain.gain.setValueAtTime(0.04, now);
-	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-
+	gain.gain.setValueAtTime(0, now);
+	gain.gain.linearRampToValueAtTime(0.12, now + 0.003);
+	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+	
+	const bufferSize = ctx.sampleRate * 0.05; // 50ms burst
+	const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+	const data = buffer.getChannelData(0);
+	for (let i = 0; i < bufferSize; i++) {
+		data[i] = Math.random() * 2 - 1;
+	}
+	const noise = ctx.createBufferSource();
+	noise.buffer = buffer;
+	
 	const filter = ctx.createBiquadFilter();
 	filter.type = 'lowpass';
-	filter.frequency.setValueAtTime(300, now);
-
-	osc.connect(filter);
-	filter.connect(gain);
+	filter.frequency.setValueAtTime(500, now);
+	
+	const noiseGain = ctx.createGain();
+	noiseGain.gain.setValueAtTime(0.03, now);
+	noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+	
+	osc.connect(gain);
+	noise.connect(filter);
+	filter.connect(noiseGain);
+	
 	gain.connect(ctx.destination);
+	noiseGain.connect(ctx.destination);
+	
 	osc.start(now);
-	osc.stop(now + 0.2);
+	osc.stop(now + 0.07);
+	noise.start(now);
+	noise.stop(now + 0.07);
 }
 
 function playSoundLevelComplete() {
@@ -1151,24 +1202,52 @@ function playSoundLevelComplete() {
 
 function playSoundLevelCompleteNodes(ctx: AudioContext) {
 	const now = ctx.currentTime;
-	const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99, 1046.50]; // C Major arpeggio
 	
-	// Soft, ambient arpeggio chord (0.015 volume)
-	notes.forEach((freq, idx) => {
+	// Shuffling cascading tiles sound: 9 rapid clatters in ascending sweep
+	for (let i = 0; i < 9; i++) {
+		const delay = i * 0.055;
+		const pitch = 650 + (i * 90) + (Math.random() * 40);
+		
 		const osc = ctx.createOscillator();
 		const gain = ctx.createGain();
-		osc.type = 'sine';
-		osc.frequency.setValueAtTime(freq, now + idx * 0.055);
 		
-		gain.gain.setValueAtTime(0, now);
-		gain.gain.linearRampToValueAtTime(0.02, now + idx * 0.055 + 0.01);
-		gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.3);
+		osc.type = 'sine';
+		osc.frequency.setValueAtTime(pitch, now + delay);
+		
+		gain.gain.setValueAtTime(0, now + delay);
+		gain.gain.linearRampToValueAtTime(0.03, now + delay + 0.002);
+		gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.045);
+		
+		// Noise transient for shuffling clack
+		const bufferSize = ctx.sampleRate * 0.035;
+		const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+		const data = buffer.getChannelData(0);
+		for (let k = 0; k < bufferSize; k++) data[k] = Math.random() * 2 - 1;
+		
+		const noise = ctx.createBufferSource();
+		noise.buffer = buffer;
+		
+		const filter = ctx.createBiquadFilter();
+		filter.type = 'bandpass';
+		filter.frequency.setValueAtTime(2000, now + delay);
+		filter.Q.setValueAtTime(1.5, now + delay);
+		
+		const noiseGain = ctx.createGain();
+		noiseGain.gain.setValueAtTime(0.015, now + delay);
+		noiseGain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.025);
 		
 		osc.connect(gain);
+		noise.connect(filter);
+		filter.connect(noiseGain);
+		
 		gain.connect(ctx.destination);
-		osc.start(now + idx * 0.055);
-		osc.stop(now + idx * 0.055 + 0.3);
-	});
+		noiseGain.connect(ctx.destination);
+		
+		osc.start(now + delay);
+		osc.stop(now + delay + 0.05);
+		noise.start(now + delay);
+		noise.stop(now + delay + 0.05);
+	}
 }
 
 // Initialize the panel immediately to ensure timerDiv is ready
