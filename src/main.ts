@@ -45,7 +45,7 @@ type PresetGenerator = () => Vec3[];
 // -----------------------------------------------------------------------------
 const STORAGE_KEY = 'flagtest_level_progress';
 const HINTS_TOGGLE_KEY = 'flagtest_show_hints';
-const CURRENT_VERSION = 'v1.4.1';
+const CURRENT_VERSION = 'v1.4.2';
 const HINT_COSTS = {
 	COUNTRY: 15,
 	CONTINENT: 20
@@ -1969,27 +1969,7 @@ function isTileFree(mesh: THREE.Mesh): boolean {
 	return !(left && right);
 }
 
-function setHover(mesh: THREE.Mesh | null) {
-	if (lastHover && lastHover !== mesh) {
-		const top = (lastHover.material as THREE.Material[])[2] as THREE.MeshPhongMaterial;
-		top.emissive?.setHex(0x000000); top.specular.setHex(0x222222); top.shininess = 30;
-		lastHover = null;
-	}
-	if (!mesh) return;
-	const top = (mesh.material as THREE.Material[])[2] as THREE.MeshPhongMaterial;
-	if (isTileFree(mesh)) {
-		top.emissive.setHex(0x333333); top.specular.setHex(0xffffff); top.shininess = 60;
-	}
-	lastHover = mesh;
-}
-
-window.addEventListener('pointermove', (e) => {
-	const rect = renderer.domElement.getBoundingClientRect();
-	mouse.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -(((e.clientY - rect.top) / rect.height) * 2 - 1));
-	raycaster.setFromCamera(mouse, camera);
-	const hit = raycaster.intersectObjects(tilesGroup.children)[0];
-	setHover(hit ? hit.object as THREE.Mesh : null);
-});
+// Hover highlights removed per user request
 
 window.addEventListener('pointerdown', (e) => {
 	if (Date.now() < interactionLockUntil) return;
