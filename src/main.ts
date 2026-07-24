@@ -2136,11 +2136,25 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 			top.mesh.position.copy(handPos);
 			top.mesh.rotation.z = 0;
 			top.mesh.scale.set(1.1, 1.1, 1.1);
+			triggerSwapFeedback(hand, bIdx);
 		}
 	};
 	requestAnimationFrame(animateTop);
 
-	// Feedback & Sound Effects (Runs on all levels, including non-timed Level 1)
+	// Update State
+	hand.mesh.userData.hand = false;
+	top.mesh.userData.hand = true;
+
+	setTimeout(() => {
+		updateTrackLabels();
+		updateHandLabelFromCurrentHand();
+		updateTileSideMaterials(hand);
+		updateTileSideMaterials(top);
+		interactionLockUntil = 0;
+	}, 160);
+}
+
+function triggerSwapFeedback(hand: TileRecord, bIdx: number) {
 	if (gameActive) {
 		const handCont = continentOf(hand.iso);
 		const targetCont = assignedPillarContinents[bIdx];
@@ -2214,18 +2228,6 @@ function handlePileInteraction(clicked: THREE.Mesh) {
 			}
 		}
 	}
-
-	// Update State
-	hand.mesh.userData.hand = false;
-	top.mesh.userData.hand = true;
-
-	setTimeout(() => {
-		updateTrackLabels();
-		updateHandLabelFromCurrentHand();
-		updateTileSideMaterials(hand);
-		updateTileSideMaterials(top);
-		interactionLockUntil = 0;
-	}, 160);
 }
 
 // -----------------------------------------------------------------------------
