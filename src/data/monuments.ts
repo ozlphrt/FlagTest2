@@ -147,5 +147,158 @@ export const MONUMENTS_MAP: Record<string, MonumentData> = {
     "cu": {
         name: "El Capitolio",
         url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Capitolio_de_La_Habana.jpg/256px-Capitolio_de_La_Habana.jpg"
+    },
+    // Missing TIER 1 Tourist & Common Additions
+    "pt": {
+        name: "Belém Tower",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Torre_de_Bel%C3%A9m_November_2016-4a.jpg/256px-Torre_de_Bel%C3%A9m_November_2016-4a.jpg"
+    },
+    "be": {
+        name: "Atomium",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Atomium_Brussels_2015.jpg/256px-Atomium_Brussels_2015.jpg"
+    },
+    "ch": {
+        name: "Matterhorn",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Matterhorn_from_Domh%C3%BCtte.jpg/256px-Matterhorn_from_Domh%C3%BCtte.jpg"
+    },
+    "at": {
+        name: "Schönbrunn Palace",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Schloss_Schoenbrunn_Wien_2014_%281%29.jpg/256px-Schloss_Schoenbrunn_Wien_2014_%281%29.jpg"
+    },
+    "se": {
+        name: "Stockholm City Hall",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Stockholm_stadshus_september_2013.jpg/256px-Stockholm_stadshus_september_2013.jpg"
+    },
+    "no": {
+        name: "Bryggen",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Bryggen_at_night_Bergen_Norway.jpg/256px-Bryggen_at_night_Bergen_Norway.jpg"
+    },
+    "dk": {
+        name: "Nyhavn",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Nyhavn_Copenhagen_April_2016.jpg/256px-Nyhavn_Copenhagen_April_2016.jpg"
+    },
+    "fi": {
+        name: "Helsinki Cathedral",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Helsingin_tuomiokirkko_2016.jpg/256px-Helsingin_tuomiokirkko_2016.jpg"
+    },
+    "ie": {
+        name: "Cliffs of Moher",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Cliffs_of_Moher_August_2013.jpg/256px-Cliffs_of_Moher_August_2013.jpg"
+    },
+    "nz": {
+        name: "Sky Tower",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Auckland_Sky_Tower_Feb_2018.jpg/256px-Auckland_Sky_Tower_Feb_2018.jpg"
+    },
+    "ar": {
+        name: "Obelisco de Buenos Aires",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Obelisco_Buenos_Aires_-_General_view.jpg/256px-Obelisco_Buenos_Aires_-_General_view.jpg"
+    },
+    "ng": {
+        name: "Zuma Rock",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Zuma_Rock_Madalla.jpg/256px-Zuma_Rock_Madalla.jpg"
+    },
+    "ke": {
+        name: "Mount Kenya",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Mount_Kenya_cliffs.jpg/256px-Mount_Kenya_cliffs.jpg"
+    },
+    "il": {
+        name: "Western Wall",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Western_wall_jerusalem_2012.jpg/256px-Western_wall_jerusalem_2012.jpg"
+    },
+    "pl": {
+        name: "Wawel Castle",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Krakow_wawel_castle_dawn.jpg/256px-Krakow_wawel_castle_dawn.jpg"
+    },
+    "cz": {
+        name: "Charles Bridge",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Karluv_most_praha.jpg/256px-Karluv_most_praha.jpg"
+    },
+    "hu": {
+        name: "Hungarian Parliament",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Budapest_parliament_dusk.jpg/256px-Budapest_parliament_dusk.jpg"
+    },
+    "ro": {
+        name: "Bran Castle",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Bran_Castle_Castle.jpg/256px-Bran_Castle_Castle.jpg"
+    },
+    "ua": {
+        name: "Saint Sophia Cathedral",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Saint_Sophia_Cathedral_Kiev_aerial.jpg/256px-Saint_Sophia_Cathedral_Kiev_aerial.jpg"
+    },
+    "ve": {
+        name: "Angel Falls",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Salto_Angel.jpg/256px-Salto_Angel.jpg"
+    },
+    "ma": {
+        name: "Hassan II Mosque",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Mosqu%C3%A9e_Hassan_II_Casablanca.jpg/256px-Mosqu%C3%A9e_Hassan_II_Casablanca.jpg"
+    },
+    "gh": {
+        name: "Cape Coast Castle",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Cape_Coast_Castle_courtyard.jpg/256px-Cape_Coast_Castle_courtyard.jpg"
+    },
+    "ci": {
+        name: "Basilique de la Paix",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Basilica_of_Our_Lady_of_Peace.jpg/256px-Basilica_of_Our_Lady_of_Peace.jpg"
+    },
+    "sn": {
+        name: "Renaissance Monument",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/African_Renaissance_Monument.jpg/256px-African_Renaissance_Monument.jpg"
+    },
+    "lk": {
+        name: "Sigiriya",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Sigiriya_Lion_Rock.jpg/256px-Sigiriya_Lion_Rock.jpg"
+    },
+    "np": {
+        name: "Boudhanath Stupa",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Boudhanath_Stupa_Kathmandu.jpg/256px-Boudhanath_Stupa_Kathmandu.jpg"
+    },
+    "ir": {
+        name: "Persepolis",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Persepolis_Gate_of_All_Nations.jpg/256px-Persepolis_Gate_of_All_Nations.jpg"
+    },
+    "iq": {
+        name: "Great Mosque of Samarra",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Malwiya_Samarra_Iraq.jpg/256px-Malwiya_Samarra_Iraq.jpg"
+    },
+    "lb": {
+        name: "Baalbek Temples",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Temple_of_Bacchus_Baalbek.jpg/256px-Temple_of_Bacchus_Baalbek.jpg"
+    },
+    "jm": {
+        name: "Devon House",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Devon_House_Jamaica.jpg/256px-Devon_House_Jamaica.jpg"
+    },
+    "do": {
+        name: "Columbus Alcazar",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Alcazar_de_Colon_Santo_Domingo.jpg/256px-Alcazar_de_Colon_Santo_Domingo.jpg"
+    },
+    "td": {
+        name: "Zakouma National Park",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Elephant_Zakouma.jpg/256px-Elephant_Zakouma.jpg"
+    },
+    "mc": {
+        name: "Prince's Palace",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Monaco_Palace_of_Prince.jpg/256px-Monaco_Palace_of_Prince.jpg"
+    },
+    "ml": {
+        name: "Great Mosque of Djenné",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Great_Mosque_of_Djenne_1.jpg/256px-Great_Mosque_of_Djenne_1.jpg"
+    },
+    "gn": {
+        name: "Mount Nimba",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/19/Mount_Nimba_strictly_reserve.jpg/256px-Mount_Nimba_strictly_reserve.jpg"
+    },
+    "is": {
+        name: "Hallgrímskirkja",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Hallgrimskirkja_Reykjavik.jpg/256px-Hallgrimskirkja_Reykjavik.jpg"
+    },
+    "ps": {
+        name: "Dome of the Rock",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Dome_of_the_Rock_Jerusalem.jpg/256px-Dome_of_the_Rock_Jerusalem.jpg"
+    },
+    "kw": {
+        name: "Kuwait Towers",
+        url: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Kuwait_Towers_Water.jpg/256px-Kuwait_Towers_Water.jpg"
     }
 };
