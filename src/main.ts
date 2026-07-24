@@ -715,7 +715,32 @@ function createTileAt(p: Vec3, iso: string): TileRecord {
 				ctx.fillText(monument.name, 256, 462);
 				tex.needsUpdate = true;
 			};
-			img.src = monument.url;
+			img.onerror = () => {
+				console.warn("Failed to load monument image for " + iso + ", falling back to outline map.");
+				const fallbackImg = new Image();
+				fallbackImg.crossOrigin = 'anonymous';
+				fallbackImg.onload = () => {
+					ctx.fillStyle = '#f8fafc';
+					ctx.fillRect(0, 0, 512, 512);
+					const aspect = fallbackImg.width / fallbackImg.height;
+					let drawW = 512 * 0.85;
+					let drawH = drawW / aspect;
+					if (drawH > 512 * 0.85) {
+						drawH = 512 * 0.85;
+						drawW = drawH * aspect;
+					}
+					ctx.drawImage(fallbackImg, (512 - drawW) / 2, (512 - drawH) / 2, drawW, drawH);
+					
+					// Draw a label at the bottom
+					ctx.fillStyle = '#1e293b';
+					ctx.font = 'bold 24px "Segoe UI", Roboto, sans-serif';
+					ctx.textAlign = 'center';
+					ctx.fillText(monument.name, 256, 470);
+					tex.needsUpdate = true;
+				};
+				fallbackImg.src = `https://raw.githubusercontent.com/djaiss/mapsicon/master/all/${iso.toLowerCase()}/256.png`;
+			};
+			img.src = monument.url + '?nocache=' + Date.now();
 		} else {
 			// Fallback: If no monument photo is mapped, load the outline shape map!
 			const canvas = document.createElement('canvas');
