@@ -40,7 +40,7 @@ const TIER_3_TRICKY = [
 // -----------------------------------------------------------------------------
 // Level Configuration
 // -----------------------------------------------------------------------------
-export type GameMode = 'Standard' | 'Visual' | 'Capital' | 'Shape';
+export type GameMode = 'Standard' | 'Visual' | 'Monument' | 'Shape';
 export type TimerMode = 'None' | 'CountUp' | 'Blitz';
 
 export interface LevelConfig {
@@ -124,39 +124,39 @@ export const LEVELS: LevelConfig[] = [
         visualHint: "2:30 Minutes. Go fast."
     },
 
-    // --- PHASE 3: CAPITAL CITIES (Lvl 7-9) ---
+    // --- PHASE 3: LANDMARKS & MONUMENTS (Lvl 7-9) ---
     {
         id: 7,
-        title: "Capital City",
-        subtitle: "Level 7: Tourist Capitals",
+        title: "Landmark Hunter",
+        subtitle: "Level 7: Tourist Landmarks",
         tier: TIER_1_TOURIST,
-        mode: 'Capital',
+        mode: 'Monument',
         timer: 'CountUp',
-        visualHint: "Match Capital City to Continent."
+        visualHint: "Match Monument Photo to Continent."
     },
     {
         id: 8,
-        title: "Capital Blitz",
-        subtitle: "Level 8: Common Capitals",
+        title: "Landmark Blitz",
+        subtitle: "Level 8: Common Landmarks",
         tier: TIER_2_COMMON,
-        mode: 'Capital',
+        mode: 'Monument',
         timer: 'Blitz',
         blitzTimeSeconds: 240, // 4:00
         correctBonusSeconds: 3,
         wrongPenaltySeconds: 15,
-        visualHint: "4 Minutes. Capital Cities."
+        visualHint: "4 Minutes. Landmark Photos."
     },
     {
         id: 9,
-        title: "Hardcore Geography",
-        subtitle: "Level 9: Tricky Capitals",
+        title: "World Wonder",
+        subtitle: "Level 9: Tricky Landmarks",
         tier: TIER_3_TRICKY,
-        mode: 'Capital',
+        mode: 'Monument',
         timer: 'Blitz',
         blitzTimeSeconds: 240, // 4:00
         correctBonusSeconds: 3,
         wrongPenaltySeconds: 18,
-        visualHint: "Match capitals of confusing flags."
+        visualHint: "Match landmarks under pressure."
     },
 
     // --- PHASE 4: GRANDMASTER (Lvl 10-12) ---
@@ -165,9 +165,9 @@ export const LEVELS: LevelConfig[] = [
         title: "Shape Shifter",
         subtitle: "Level 10: Country Shapes",
         tier: TIER_1_TOURIST,
-        mode: 'Shape', // Fallback to Visual if no assets
+        mode: 'Shape',
         timer: 'CountUp',
-        visualHint: "Identify countries by SHAPE."
+        visualHint: "Identify countries by outline shape."
     },
     {
         id: 11,
@@ -183,11 +183,11 @@ export const LEVELS: LevelConfig[] = [
         title: "Ultimate Geography",
         subtitle: "Level 12: UN 193 Blitz",
         tier: UN193_ISO2,
-        mode: 'Capital',
+        mode: 'Monument',
         timer: 'Blitz',
         blitzTimeSeconds: 180, // 3:00
         correctBonusSeconds: 2,
         wrongPenaltySeconds: 20,
-        visualHint: "The Final Test. All 193 Capitals."
+        visualHint: "The Final Test. All 193 Landmarks/Outlines."
     }
 ];

@@ -10,8 +10,8 @@ import { bridgeMasks } from './layouts/preset_bridge';
 import { crabMasks } from './layouts/preset_crab';
 import { UN193_ISO2 } from './data/un193';
 import { continentOf, type Continent } from './data/continents';
-import { LEVELS, type LevelConfig } from './data/levels';
 import { CAPITALS_MAP } from './data/capitals';
+import { MONUMENTS_MAP } from './data/monuments';
 
 // -----------------------------------------------------------------------------
 // Constants & Configuration
@@ -267,18 +267,7 @@ function decrefTexture(iso: string) {
 function getOrCreateFlagMaterial(iso: string) {
 	// If Capital Mode, we don't return a flag texture, we return a solid color + text?
 	// Actually, Capital Mode might still show the flag? No, "Capital Mode (Text: 'Paris') | Count Up" -> usually implies text on tile?
-	// "Capital Mode: Capital City Name Only (No Flag)" per design.
-	// We'll handle this in createTileAt by swapping the material or geometry if needed, 
-	// but it's easier to just use a placeholder material here if the mode demands it.
 
-	if (currentLevelConfig.mode === 'Capital') {
-		// Return a generic material, the text will be added as a child or texture. 
-		// Actually, let's keep the flag material for now but maybe cover it?
-		// User requirement: "Capital Cities only (e.g., tile says 'Tokyo' -> goes to Asia)"
-		// This implies the TILE FACE shows "Tokyo".
-		// Creating a text texture for every tile is expensive but doable for 144 tiles.
-		// For now, let's stick to standard behavior here and handle the "Appearance" in createTileAt.
-	}
 
 	const cached = textureCache.get(iso);
 	let tex: THREE.Texture;
@@ -450,7 +439,7 @@ function ensureStatusPanel() {
 
 function updateLevelBadge() {
 	ensureStatusPanel();
-	levelInfoDiv.innerHTML = `<div style="font-size:16px;font-weight:700;letter-spacing:0.3px;margin-bottom:2px">${currentLevelConfig.mode === 'Standard' || currentLevelConfig.mode === 'Capital' ? currentLevelConfig.title : currentLevelConfig.title}</div><div style="font-size:12px;opacity:0.75;font-weight:500">${currentLevelConfig.subtitle}</div>`;
+	levelInfoDiv.innerHTML = `<div style="font-size:16px;font-weight:700;letter-spacing:0.3px;margin-bottom:2px">${currentLevelConfig.title}</div><div style="font-size:12px;opacity:0.75;font-weight:500">${currentLevelConfig.subtitle}</div>`;
 }
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -640,53 +629,121 @@ function clearTiles() {
 function createTileAt(p: Vec3, iso: string): TileRecord {
 	let topMat: THREE.Material;
 
-	if (currentLevelConfig.mode === 'Capital') {
+	if (currentLevelConfig.mode === 'Shape') {
 		const canvas = document.createElement('canvas');
-		canvas.width = 512; canvas.height = 256;
+		canvas.width = 512; canvas.height = 512; // Higher square resolution for shapes
 		const ctx = canvas.getContext('2d')!;
 		
-		// Clean high-contrast dark slate background
-		ctx.fillStyle = '#0f172a';
-		ctx.fillRect(0, 0, 512, 256);
-		ctx.fillStyle = '#ffffff';
-		ctx.textAlign = 'center';
-		ctx.textBaseline = 'middle';
-		ctx.font = '900 48px "Segoe UI", Roboto, sans-serif';
-		ctx.fillText('Loading...', 256, 128);
+		// Clean light slate-grey background for dark maps
+		ctx.fillStyle = '#f8fafc';
+		ctx.fillRect(0, 0, 512, 512);
+		
+		ctx.fillStyle = '#64748b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+		ctx.font = 'bold 36px "Segoe UI", Roboto, sans-serif';
+		ctx.fillText('Loading map...', 256, 256);
 		
 		const tex = new THREE.CanvasTexture(canvas);
 		topMat = new THREE.MeshPhongMaterial({ map: tex });
 
-		resolveCapitalName(iso).then(cap => {
-			ctx.fillStyle = '#0f172a';
-			ctx.fillRect(0, 0, 512, 256);
-			ctx.fillStyle = '#ffffff';
+		const img = new Image();
+		img.crossOrigin = 'anonymous';
+		img.onload = () => {
+			ctx.fillStyle = '#f8fafc';
+			ctx.fillRect(0, 0, 512, 512);
 			
-			// Dynamic scaling to fill space with thick, legible font
-			let fontSize = 110; // Default for short names (e.g. Oslo, Paris, Tokyo)
-			if (cap.length > 20) {
-				fontSize = 52;
-			} else if (cap.length > 14) {
-				fontSize = 72;
-			} else if (cap.length > 8) {
-				fontSize = 90;
+			// Fit map silhouette nicely inside the square canvas
+			const aspect = img.width / img.height;
+			let drawW = 512 * 0.85;
+			let drawH = drawW / aspect;
+			if (drawH > 512 * 0.85) {
+				drawH = 512 * 0.85;
+				drawW = drawH * aspect;
 			}
-			ctx.font = `900 ${fontSize}px "Segoe UI", Roboto, sans-serif`;
-
-			const words = cap.split(' ');
-			if (words.length > 1 && cap.length > 8) {
-				const mid = Math.ceil(words.length / 2);
-				ctx.fillText(words.slice(0, mid).join(' '), 256, 85);
-				ctx.fillText(words.slice(mid).join(' '), 256, 175);
-			} else {
-				ctx.fillText(cap, 256, 128);
-			}
+			ctx.drawImage(img, (512 - drawW) / 2, (512 - drawH) / 2, drawW, drawH);
 			tex.needsUpdate = true;
-		});
+		};
+		img.src = `https://raw.githubusercontent.com/djaiss/mapsicon/master/all/${iso.toLowerCase()}/256.png`;
 
-	} else if (currentLevelConfig.mode === 'Shape') { // Visual fallback for now
-		topMat = getOrCreateFlagMaterial(iso);
-		// TODO: Shape implementation
+	} else if (currentLevelConfig.mode === 'Monument') {
+		const monument = MONUMENTS_MAP[iso.toLowerCase()];
+		if (monument) {
+			const canvas = document.createElement('canvas');
+			canvas.width = 512; canvas.height = 512;
+			const ctx = canvas.getContext('2d')!;
+			
+			ctx.fillStyle = '#0f172a';
+			ctx.fillRect(0, 0, 512, 512);
+			
+			ctx.fillStyle = '#94a3b8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+			ctx.font = 'bold 32px "Segoe UI", Roboto, sans-serif';
+			ctx.fillText('Loading photo...', 256, 256);
+			
+			const tex = new THREE.CanvasTexture(canvas);
+			topMat = new THREE.MeshPhongMaterial({ map: tex });
+
+			const img = new Image();
+			img.crossOrigin = 'anonymous';
+			img.onload = () => {
+				ctx.fillStyle = '#0f172a';
+				ctx.fillRect(0, 0, 512, 512);
+				
+				// Crop or fit image to top 78% of the square tile face
+				const aspect = img.width / img.height;
+				let drawW = 512;
+				let drawH = 512 / aspect;
+				if (drawH > 400) {
+					drawH = 400;
+					drawW = 400 * aspect;
+				}
+				ctx.drawImage(img, (512 - drawW) / 2, (400 - drawH) / 2, drawW, drawH);
+				
+				// Name overlay bar at bottom
+				ctx.fillStyle = '#1e293b';
+				ctx.fillRect(0, 412, 512, 100);
+				
+				ctx.fillStyle = '#ffffff';
+				ctx.font = '900 32px "Segoe UI", Roboto, sans-serif';
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'middle';
+				
+				// Handle long names text wrapping inside overlay bar
+				const maxOverlayW = 480;
+				if (ctx.measureText(monument.name).width > maxOverlayW) {
+					ctx.font = '900 26px "Segoe UI", Roboto, sans-serif';
+				}
+				ctx.fillText(monument.name, 256, 462);
+				tex.needsUpdate = true;
+			};
+			img.src = monument.url;
+		} else {
+			// Fallback: If no monument photo is mapped, load the outline shape map!
+			const canvas = document.createElement('canvas');
+			canvas.width = 512; canvas.height = 512;
+			const ctx = canvas.getContext('2d')!;
+			
+			ctx.fillStyle = '#f8fafc';
+			ctx.fillRect(0, 0, 512, 512);
+			
+			const tex = new THREE.CanvasTexture(canvas);
+			topMat = new THREE.MeshPhongMaterial({ map: tex });
+
+			const img = new Image();
+			img.crossOrigin = 'anonymous';
+			img.onload = () => {
+				ctx.fillStyle = '#f8fafc';
+				ctx.fillRect(0, 0, 512, 512);
+				const aspect = img.width / img.height;
+				let drawW = 512 * 0.85;
+				let drawH = drawW / aspect;
+				if (drawH > 512 * 0.85) {
+					drawH = 512 * 0.85;
+					drawW = drawH * aspect;
+				}
+				ctx.drawImage(img, (512 - drawW) / 2, (512 - drawH) / 2, drawW, drawH);
+				tex.needsUpdate = true;
+			};
+			img.src = `https://raw.githubusercontent.com/djaiss/mapsicon/master/all/${iso.toLowerCase()}/256.png`;
+		}
 	} else {
 		topMat = getOrCreateFlagMaterial(iso);
 	}
@@ -1650,13 +1707,12 @@ function updateHandLabelFromCurrentHand() {
 	const hand = tileRecords.find(r => r.mesh.userData.hand);
 	if (!hand) return;
 
-	if (mode === 'Capital' && !debugContinentsEnabled) {
-		// Show Capital Name
-		resolveCapitalName(hand.iso).then(cap => {
-			const label = makeTextLabel(cap, undefined, '#ffeb3b'); // Yellow for capital
-			label.position.set(hand.mesh.position.x, 0.03, hand.mesh.position.z + TILE.depth * 0.8);
-			handLabelGroup.add(label);
-		});
+	if (mode === 'Monument' && !debugContinentsEnabled) {
+		const monument = MONUMENTS_MAP[hand.iso.toLowerCase()];
+		const textToShow = monument ? monument.name : "Country Outline Map";
+		const label = makeTextLabel(textToShow, undefined, '#ffeb3b'); // Yellow for landmark
+		label.position.set(hand.mesh.position.x, 0.03, hand.mesh.position.z + TILE.depth * 0.8);
+		handLabelGroup.add(label);
 		return;
 	}
 
