@@ -10,6 +10,7 @@ import { bridgeMasks } from './layouts/preset_bridge';
 import { crabMasks } from './layouts/preset_crab';
 import { UN193_ISO2 } from './data/un193';
 import { continentOf, type Continent } from './data/continents';
+import { LEVELS, type LevelConfig } from './data/levels';
 import { CAPITALS_MAP } from './data/capitals';
 import { MONUMENTS_MAP } from './data/monuments';
 
